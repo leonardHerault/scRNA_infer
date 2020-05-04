@@ -1,0 +1,34 @@
+  description: |
+    This config file works with the Snakefile_final workflow 10X data
+    
+  author: "Leonard Herault"
+  
+  seurat_monocle_env: "/home/leonard.herault/scRNA_infer/config/report_env.yml"
+
+  pyscenic_env: "/home/leonard.herault/scRNA_infer/config/pyscenic0.10_env.yml"
+
+  dca_env: "/home/leonard.herault/scRNA_infer/config/dca_env.yml"
+  
+  progeny_env: "/home/leonard.herault/scRNA_infer/config/progeny_env.yml"
+
+  dorothea_env: "/home/leonard.herault/scRNA_infer/config/dorothea_env.yml"
+
+
+  dir:
+    base: "/home/leonard.herault/scRNA_infer"
+    script_dir: "/home/leonard.herault/scRNA_infer/R_src"
+    inputData: "/home/leonard.herault/sinCellHSPCAging_herault/"
+
+  seurat3:
+    dim: "15"
+    correction: "G2M_score+S_score+G1_score"
+    minPropCellExp: "0.001"
+    resolution: "0.6"
+
+  
+  scenic:
+    sums: "https://resources.aertslab.org/cistarget/databases/sha256sum.txt"
+    cis_target_url: "https://resources.aertslab.org/cistarget/databases/mus_musculus/mm9/refseq_r45/mc9nr/gene_based/mm9-tss-centered-10kb-7species.mc9nr.feather"
+    motif_url: "https://resources.aertslab.org/cistarget/motif2tf/motifs-v9-nr.mgi-m0.001-o0.0.tbl"
+
+  dca: "--normtype --type zinb-conddisp --L1enc 1.7124745250568364e-07 --dropoutrate  0.014733010254961758 --ridge 1.8157607089533045e-07 --activation linear --hiddensize 16,16 --inputdropout 0.2092760476136833 --learningrate 0.0012675894226086178"
