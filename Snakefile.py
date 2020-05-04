@@ -16,9 +16,19 @@ os.chdir(baseDir)
 
 rule all:
     input:"reportProjet2/report_final.html"
+    
+rule getDataMatrixFromPreviousWork:
+    input: inputDataDir+"/report/seurat_report.rds",
+    output: "input/dataMatrix.csv"
+    conda: seurat_monocle_env
+    params: slot = "data"
+    threads: 1
+    shell: "Rscript R_src/getDataMatrixCL.R -i {input.seurat} -s {params.slot} -o input/"
+
+    
 
 rule dca:
-    input: inputDataDir+"/report/dca/dataMatrix.csv"
+    input: "input/dataMatrix.csv"
     output: "output/dca/results/mean.tsv"
     threads: 24 
     conda: dca_env
@@ -130,7 +140,8 @@ rule prune_modules_rna_with_cis_target_json:
  
         
 rule aucell_TF_seurat_regulon_dca:
-    input:"output/ScenicDCA/expressionRawCountFilteredForScenic.tsv", "output/ScenicDCA/cis_target/regulons.csv"
+    input:"output/ScenicDCA/expressionRawCountFilteredForScenic.tsv", 
+          "output/ScenicDCA/cis_target/regulons.csv"
     output:"output/ScenicDCA/AUCell/regulons_enrichment.csv"
     threads:20
     conda:pyscenic_env
@@ -191,7 +202,7 @@ rule add_dca_to_Seurat:
     shell: "Rscript R_src/addDcaCL.R -i {input.seurat} -j {input.dcaMean} -o output/dca/Seurat3 -a {params.ident} -s {input.sig} -k {input.rodriguez}"
 
 rule progeny:
-    input: normData = inputDataDir+"report/dca/dataMatrix.csv"
+    input: normData = "input/dataMatrix.csv"
     output: "output/progeny/rna/progeny_scores.tsv"
     conda: progeny_env
     threads:1
