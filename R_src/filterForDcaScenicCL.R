@@ -20,7 +20,7 @@ spec = matrix(c(
   'outdir',     'o',1, "character", 'Outdir path (default ./)',
   'firstFilter',   'f',1,"numeric", 'Keep only the genes with at least N = f(X) 2 mean imputed counts across all samples (X=2 by default) \n(e.g. the total number the gene would have, if it was expressed with a value of X in 1% of the cells). \nAdjust X value according to the dataset (it will depend on the dataset units, e.g. UMI, TPMs???).',
   'secondFilter',  's',1, "numeric", 'Keep the genes that are detected in at least X% of the cells (X=1% by default)',
-  'importantTF', 't', 1, "character","TF that we want to keep even if their expression don't pass the filter. \n(eg output of Seurat_biologyCL script with the table of TFinDEG + Bonzanni TFs."
+  'importantTF', 't', 1, "character","TF that we want to keep even if their expression don't pass the filter. \n(eg output of filterForScenicCL script with the table of TFinDEG + Bonzanni TFs."
 ), byrow=TRUE, ncol=5);
 
 opt = getopt(spec)
@@ -57,11 +57,6 @@ mart <- useDataset("mmusculus_gene_ensembl", useMart("ensembl"))
 
 genes <- list()
 genes$names <- rownames(data)
-
-TF <- getBM(attributes=c("external_gene_name"),
-            filters=c("external_gene_name","go"),
-            values=list(genes$names,
-                        "GO:0003700"),mart=mart)
 
 
 nCellsPerGene <- apply(data, 1, function(x) sum(x>0))
