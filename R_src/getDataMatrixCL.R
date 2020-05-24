@@ -29,5 +29,5 @@ if (is.null(opt$slot)) {
 }
 
 seurat <- readRDS(opt$inputRDS)
-matrix <- as.matrix(GetAssayData(seurat,slot = "data"))
+matrix <- as.matrix(GetAssayData(seurat,slot = "counts"))
 write.csv(matrix,file = paste(opt$outdir,"/dataMatrix.csv",sep =""),quote = F)
