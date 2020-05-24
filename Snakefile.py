@@ -1,6 +1,6 @@
 import os
 import re
-
+import pandas as pd
 
 baseDir = config["dir"]["base"]
 inputDataDir = config["dir"]["inputData"]
@@ -23,7 +23,7 @@ rule getDataMatrixFromPreviousWork:
     conda: seurat_monocle_env
     params: slot = "data"
     threads: 1
-    shell: "Rscript R_src/getDataMatrixCL.R -i {input.seurat} -s {params.slot} -o input/"
+    shell: "Rscript R_src/getDataMatrixCL.R -i {input} -s {params.slot} -o input/"
 
     
 
@@ -52,12 +52,8 @@ rule filter_genes_for_scenic_dca:
 rule prepare_tf_list:
      input: inputDataDir+"/publicData/database/motifs-v9-nr.mgi-m0.001-o0.0.tbl"
      output: "output/publicData/mm_mgi_tfs.txt"
-     run:
-         df_motifs_mgi = pd.read_csv(input, sep='\t')
-         mm_tfs = df_motifs_mgi.gene_name.unique()
-         with open(output, 'wt') as f:
-             f.write('\n'.join(mm_tfs) + '\n')
-         len(mm_tfs)
+     conda: pyscenic_env
+     shell: "python py_src/getTfList.py -i {input} -o {output}"
 
         
 rule grnboost_rna:
@@ -74,7 +70,7 @@ rule grnboost_dca:
     input: "output/ScenicDCA/expressionRawCountFilteredForScenic.tsv",
             "output/publicData/mm_mgi_tfs.txt"
     output: "output/ScenicDCA/GRNboost/GRNboost.tsv"
-    threads: 20
+    threads: 26
     conda: pyscenic_env
     shell:
         "pyscenic grn --num_workers {threads} {input[0]} {input[1]} -o {output}"
@@ -220,8 +216,8 @@ rule dorothea:
     input: seurat = inputDataDir+"report/seurat_report.rds",
     output:  "output/dorothea/rna/seuratDorothea.rds"
     conda: dorothea_env
-    threads:1
-    shell: "Rscript R_src/DorotheaCL.R -i {input.seurat} -o output/dorothea/rna"
+    threads:10
+    shell: "Rscript R_src/DorotheaCL.R -c {threads} -i {input.seurat} -o output/dorothea/rna"
     
 
 rule dorothea_dca:
@@ -229,12 +225,12 @@ rule dorothea_dca:
            dorotheaCorrectlyInstalled ="output/dorothea/rna/seuratDorothea.rds"
     output: "output/dorothea/dca/seuratDorothea.rds"
     conda: dorothea_env
-    threads:1
-    shell: "Rscript R_src/DorotheaCL.R -i {input.seurat} -o output/dorothea/dca"
+    threads:20
+    shell: "Rscript R_src/DorotheaCL.R -c {threads} -i {input.seurat} -o output/dorothea/dca"
     
 rule get_reportProjet2:
-    input:"output/dorothea/dca/seuratDorothea.rds",
-          "output/dorothea/rna/seuratDorothea.rds",
+    input:#"output/dorothea/dca/seuratDorothea.rds",
+          #"output/dorothea/rna/seuratDorothea.rds",
           "output/ScenicDCA/AUCell/regulons_enrichment.csv",
           "output/ScenicRNA/AUCell/regulons_enrichment.csv",
           "output/progeny/dca/progeny_scores.tsv",
