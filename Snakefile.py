@@ -229,8 +229,8 @@ rule dorothea_dca:
     shell: "Rscript R_src/DorotheaCL.R -c {threads} -i {input.seurat} -o output/dorothea/dca"
     
 rule get_reportProjet2:
-    input:#"output/dorothea/dca/seuratDorothea.rds",
-          #"output/dorothea/rna/seuratDorothea.rds",
+    input:"output/dorothea/dca/seuratDorothea.rds",
+          "output/dorothea/rna/seuratDorothea.rds",
           "output/ScenicDCA/AUCell/regulons_enrichment.csv",
           "output/ScenicRNA/AUCell/regulons_enrichment.csv",
           "output/progeny/dca/progeny_scores.tsv",
