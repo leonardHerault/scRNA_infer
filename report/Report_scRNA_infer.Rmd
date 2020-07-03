@@ -1,0 +1,702 @@
+---
+title: "Report_scRNA_infer"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+## Loading env
+
+```{r loading, echo=FALSE}
+suppressMessages(library(ggplot2))
+suppressMessages(library(Seurat))
+suppressMessages(library(monocle))
+suppressMessages(library(BoolNet))
+suppressMessages(library(dplyr))
+suppressMessages(library(igraph))
+suppressMessages(library(plyr))
+suppressMessages(library(stringr))
+
+suppressMessages(library(gridExtra))
+suppressMessages(library(RColorBrewer))
+
+dir.create("images",showWarnings = F)
+dir.create("tables",showWarnings = F)
+```
+
+## Loading Bonzanni boolean network
+
+```{r}
+bonzanni <- read.table("../publicData/Bonzanni_2013.reggraph",sep = " ",stringsAsFactors  = F)
+colnames(bonzanni) <- c("tf","mor","target")
+bonzanni$mor[which(bonzanni$mor == "-|")] <- -1
+bonzanni$mor[which(bonzanni$mor == "->")] <- 1
+
+bonzanni$interaction <- paste(bonzanni$tf,
+                              bonzanni$target,
+                              bonzanni$mor,sep ="_")
+
+for (r in rownames(bonzanni)) {
+  if(bonzanni[r,"mor"] == "-?") {
+    #print(bonzanni[r,])
+    neg <- bonzanni[r,] 
+    neg$mor <- -1
+    bonzanni[r,"mor"] <- 1
+    bonzanni <- rbind(bonzanni,neg)
+  }
+}
+
+#show bonznni network tf
+
+
+graphBonzanniOri <- graph_from_data_frame(bonzanni[c(1,3,2)], directed = TRUE, vertices = NULL)
+edgesOri <- bonzanni[,"mor"]
+edge.color.ori <- rep("blue",length(edgesOri))
+edge.color.ori[which(edgesOri == -1)] <- "red"
+
+bonzanni_adja <- as_adjacency_matrix(graph = graphBonzanniOri)
+
+
+
+```
+
+## Backgournd tf
+
+```{r}
+tf_mouse <- read.table("../output/publicData/mm_mgi_tfs.txt")
+length(tf_mouse$V1)
+
+tf_tested <- tf_mouse$V1
+```
+## Scenic network from rna data
+
+TO DO add dorothea tf in the possible targets. And in the input of Scenic?
+
+```{r scenicRnaNet,  fig.height=15,fig.width=14}
+
+scenicNetRna <- read.csv("../output/ScenicRNA/tf_grn_regulons.csv") #TO DO add dorothea tf in the possible targets
+scenicNetRna$mor <- NA
+scenicNetRna$mor[which(scenicNetRna$interaction == "+")] <- "1"
+scenicNetRna$mor[which(scenicNetRna$interaction == "-")] <- "-1"
+scenicNetRna <- scenicNetRna[,c("TF","Target","mor")]
+colnames(scenicNetRna) <- c("tf","target","mor")
+for (r in rownames(bonzanni)) {
+  if(bonzanni[r,"mor"] == "-?") {
+    #print(bonzanni[r,])
+    neg <- bonzanni[r,] 
+    neg$mor <- -1
+    bonzanni[r,"mor"] <- 1
+    bonzanni <- rbind(bonzanni,neg)
+  }
+}
+
+scenicNetRna$interaction <- paste(scenicNetRna$tf,
+                                            scenicNetRna$target,
+                                            scenicNetRna$mor,sep ="_")
+
+
+
+
+scenicNetRnaGraph <- graph_from_data_frame(scenicNetRna, directed = TRUE, vertices = NULL)
+
+
+# some stats
+table(scenicNetRna$mor)
+length(E(scenicNetRnaGraph))
+length(V(scenicNetRnaGraph))
+edge_density(scenicNetRnaGraph, loops = TRUE)
+
+
+
+#compare with bonznni network tf
+scenicNetRnaBonza <- scenicNetRna[which(scenicNetRna$tf %in% colnames(bonzanni_adja) & scenicNetRna$target %in% colnames(bonzanni_adja)),c("tf","target","mor")]
+
+inner_join(scenicNetRnaBonza,bonzanni)
+
+#
+scenicNetRnaBonzaGraph <- graph_from_data_frame(scenicNetRnaBonza, directed = TRUE, vertices = NULL)
+
+edges.rna <- scenicNetRnaBonza[,"mor"]
+edge.color.rna <- rep("blue",length(edges.rna))
+edge.color.rna[which(edges.rna == -1)] <- "red"
+
+scenicRnaInterBonza <- inner_join(scenicNetRnaBonza,bonzanni)
+
+scenicRnaGraphBonzanniShared <- graph_from_data_frame(scenicRnaInterBonza,directed = TRUE, vertices = NULL)
+
+
+edgesShared.rna <- scenicRnaInterBonza[,"mor"]
+edgesShared.color.rna <- rep("blue",length(edgesShared.rna))
+edgesShared.color.rna[which(edgesShared.rna == -1)] <- "red"
+
+par(mfrow=c(2,2))
+plot(scenicNetRnaBonzaGraph, 
+     edge.color = edge.color.rna,
+     main="Influence graph bonzanni  TFs\nScenic RNA regulons",
+     vertex.size =30,
+     vertex.shape = "rectangle",
+vertex.label.cex = 1.5)
+plot(graphBonzanniOri,
+     edge.color = edge.color.ori,
+     main="Influence graph bonzanni",
+     vertex.size =30,
+     vertex.shape = "rectangle",
+vertex.label.cex = 1.5)
+plot(scenicRnaGraphBonzanniShared,
+     edge.color = edgesShared.color.rna,
+     main="Influence graph bonzanni\nrecovered in Scenic RNA regulons",
+     vertex.size =30,
+     vertex.shape = "rectangle",
+vertex.label.cex = 1.5)
+
+```
+## Significance of the enrichment in Bonzanni interaction for the Scenic RNA regulons
+Take all the mouse TF took as input in the workflow for background.
+
+```{r}
+#source("../../herault_et_al/scHSC_herault/R_src/Enrichment.R")
+
+
+interactionMarked <- scenicNetRna$interaction[which(scenicNetRna$interaction %in% bonzanni$interaction)] 
+
+#tf_tested <- unique(tf_dorothea_ABC$tf)
+backgroundInteraction <- 2*(length(tf_tested)*(length(tf_tested)+1))/2 #complete graph plus self loop by two (inhibiton and activation)
+
+phyper(q=length(interactionMarked) -1, 
+       m=length(bonzanni$interaction),                 
+       n=backgroundInteraction - length(bonzanni$interaction), k= length(scenicNetRna$interaction), lower.tail=FALSE)
+
+length(which(endsWith(interactionMarked,suffix = "_1")))/length(which(endsWith(bonzanni$interaction,"_1")))
+length(which(endsWith(interactionMarked,suffix = "_-1")))/length(which(endsWith(bonzanni$interaction,"_-1")))
+
+```
+
+## Scenic network from rna data mask dropouts option
+
+TO DO add dorothea tf in the possible targets. And in the input of Scenic?
+
+```{r scenicRnaNet,  fig.height=15,fig.width=14}
+
+scenicNetRnaMaskDrop <- read.csv("../output/ScenicRNA/tf_grn_regulons_maskDropouts.csv") #TO DO add dorothea tf in the possible targets
+scenicNetRnaMaskDrop$mor <- NA
+scenicNetRnaMaskDrop$mor[which(scenicNetRnaMaskDrop$interaction == "+")] <- "1"
+scenicNetRnaMaskDrop$mor[which(scenicNetRnaMaskDrop$interaction == "-")] <- "-1"
+scenicNetRnaMaskDrop <- scenicNetRnaMaskDrop[,c("TF","Target","mor")]
+colnames(scenicNetRnaMaskDrop) <- c("tf","target","mor")
+scenicNetRnaMaskDrop$interaction <- paste(scenicNetRnaMaskDrop$tf,
+                                            scenicNetRnaMaskDrop$target,
+                                            scenicNetRnaMaskDrop$mor,sep ="_")
+
+
+scenicNetRnaMaskDropGraph <- graph_from_data_frame(scenicNetRnaMaskDrop, directed = TRUE, vertices = NULL)
+
+
+# some stats
+table(scenicNetRnaMaskDrop$mor)
+length(E(scenicNetRnaMaskDropGraph))
+length(V(scenicNetRnaMaskDropGraph))
+edge_density(scenicNetRnaMaskDropGraph, loops = TRUE)
+
+
+
+#compare with bonznni network tf
+scenicNetRnaMaskDropBonza <- scenicNetRnaMaskDrop[which(scenicNetRnaMaskDrop$tf %in% colnames(bonzanni_adja) & scenicNetRnaMaskDrop$target %in% colnames(bonzanni_adja)),c("tf","target","mor")]
+
+inner_join(scenicNetRnaMaskDropBonza,bonzanni)
+
+#
+scenicNetRnaMaskDropBonzaGraph <- graph_from_data_frame(scenicNetRnaMaskDropBonza, directed = TRUE, vertices = NULL)
+
+edges.rna <- scenicNetRnaMaskDropBonza[,"mor"]
+edge.color.rna <- rep("blue",length(edges.rna))
+edge.color.rna[which(edges.rna == -1)] <- "red"
+
+scenicRnaMaskDropInterBonza <- inner_join(scenicNetRnaMaskDropBonza,bonzanni)
+
+scenicRnaMaskDropGraphBonzanniShared <- graph_from_data_frame(scenicRnaMaskDropInterBonza,directed = TRUE, vertices = NULL)
+
+
+edgesShared.rnaMaskDrop <- scenicRnaMaskDropInterBonza[,"mor"]
+edgesShared.color.rnaMaskDrop <- rep("blue",length(edgesShared.rnaMaskDrop))
+edgesShared.color.rnaMaskDrop[which(edgesShared.rnaMaskDrop == -1)] <- "red"
+
+par(mfrow=c(2,2))
+plot(scenicNetRnaMaskDropBonzaGraph, 
+     edge.color = edge.color.rna,
+     main="Influence graph bonzanni  TFs\nScenic RNA regulons",
+     vertex.size =30,
+     vertex.shape = "rectangle",
+vertex.label.cex = 1.5)
+plot(graphBonzanniOri,
+     edge.color = edge.color.ori,
+     main="Influence graph bonzanni",
+     vertex.size =30,
+     vertex.shape = "rectangle",
+vertex.label.cex = 1.5)
+plot(scenicRnaMaskDropGraphBonzanniShared,
+     edge.color = edgesShared.color.rnaMaskDrop,
+     main="Influence graph bonzanni\nrecovered in Scenic RNA regulons",
+     vertex.size =30,
+     vertex.shape = "rectangle",
+vertex.label.cex = 1.5)
+
+```
+## Significance of the enrichment in Bonzanni interaction for the Scenic RNA regulons
+Take all the mouse TF took as input in the workflow for background.
+
+```{r}
+#source("../../herault_et_al/scHSC_herault/R_src/Enrichment.R")
+
+
+interactionMarkedMaskDrop <- scenicNetRnaMaskDrop$interaction[which(scenicNetRnaMaskDrop$interaction %in% bonzanni$interaction)] 
+
+#tf_tested <- unique(tf_dorothea_ABC$tf)
+#backgroundInteraction <- 2*(length(tf_tested)*(length(tf_tested)+1))/2 #complete graph plus self loop by two (inhibiton and activation)
+
+phyper(q=length(interactionMarkedMaskDrop) -1, 
+       m=length(bonzanni$interaction),                 
+       n=backgroundInteraction - length(bonzanni$interaction), k= length(scenicNetRnaMaskDrop$interaction), lower.tail=FALSE)
+
+length(which(endsWith(interactionMarkedMaskDrop,suffix = "_1")))/length(which(endsWith(bonzanni$interaction,"_1")))
+
+length(which(endsWith(interactionMarkedMaskDrop,suffix = "_-1")))/length(which(endsWith(bonzanni$interaction,"_-1")))
+
+```
+
+given the better result of mask dropout option we decide to continue with this scenic results for the building of influence graph and the search of constraints.
+
+Loading of seurat and monocle results:
+```{r}
+seurat <- readRDS("../../herault_et_al/scHSC_herault/report/seurat_report.rds")
+monocle <- readRDS("../../herault_et_al/scHSC_herault/report/monocle_report.rds")
+```
+
+## Add the scenic results in new assays
+
+For scenic on RNA with mask dropouts options
+
+```{r}
+
+regulonsTableRNA <- read.csv("../output/ScenicRNA/AUCell_maskDropouts/regulons_enrichment.csv",check.names = F) 
+rownames(regulonsTableRNA) <- gsub(x = regulonsTableRNA[,1],pattern = "\\.",replacement = "-")
+# Exclude pB cells to plot regulons in Traj without pB cells
+regulonsTableRNA <- regulonsTableRNA[colnames(seurat),-1]
+
+
+seurat[["AUCellRNA"]] <- CreateAssayObject(data=t(as.matrix(regulonsTableRNA)))
+```
+
+## find TF markers of trajectory section to define constaints
+
+
+```{r}
+colorAnnot <- c(brewer.pal(12,"Paired"))
+
+getTerminalCells <- function(cds) {
+  tip_leaves <- names(which(igraph::degree(minSpanningTree(cds)) ==
+                              1))
+  tip_leaves <- sub(x = tip_leaves, pattern = "Y_", replacement = "")
+  print("tip_leaves : ")
+  print(tip_leaves)
+  pData(cds)$terminalCells <- cds@auxOrderingData$DDRTree$pr_graph_cell_proj_closest_vertex %in%
+    tip_leaves
+  return(cds)
+}
+
+monocle <- getTerminalCells(monocle)
+
+plot_cell_trajectory(monocle, color_by = "terminalCells")
+
+pData(monocle)$Section <- paste(pData(monocle)$State,pData(monocle)$terminalCells,sep ="_")
+pData(monocle)$Section <- factor(pData(monocle)$Section,levels = c("1_TRUE","1_FALSE",
+                                                                   "2_TRUE","2_FALSE",
+                                                                   "3_TRUE","3_FALSE",
+                                                                   "4_TRUE","4_FALSE",
+                                                                   "5_TRUE","5_FALSE"))
+
+pData(monocle)$Section <- mapvalues(from =  c("1_TRUE","1_FALSE",
+                                              "2_TRUE","2_FALSE",
+                                              "3_TRUE","3_FALSE",
+                                              "4_TRUE","4_FALSE",
+                                              "5_TRUE","5_FALSE"),
+                                    to =  c("1_Start","1",
+                                            "2_End","2",
+                                            "3_End","3",
+                                            "4_End","4",
+                                            "5_End","5"),
+                                    x= pData(monocle)$Section)
+
+colorSections <- c("grey40","#999999",
+                   "#E69F00","#FFFF99",
+                   "#56B4E9",
+                   colorAnnot[c(8,7)],
+                   colorAnnot[c(2,1)])
+
+
+plot_cell_trajectory(monocle, color_by = "Section",theta = 180,show_branch_points = F) + scale_color_manual(values = colorSections)
+```
+
+## Transfert to Seurat object and test for tf markers using the different slot
+```{r}
+
+# Add monocle results to a seurat combined object
+seuratOrdered <- subset(seurat, idents = "pB",invert = TRUE)
+
+seuratOrdered$Pseudotime <- pData(monocle)[rownames(seuratOrdered@meta.data),"Pseudotime"]
+seuratOrdered$State <- pData(monocle)[rownames(seuratOrdered@meta.data),"State"]
+seuratOrdered$Section <- pData(monocle)[rownames(seuratOrdered@meta.data),"Section"]
+```
+
+# find section TF markers on RNA data
+```{r}
+Idents(seuratOrdered) <- "Section"
+DefaultAssay(seuratOrdered) <- "RNA"
+
+
+section1MarkersRNA <- FindAllMarkers(seuratOrdered,
+                               only.pos = T,
+                               logfc.threshold = 0.25,
+                               min.pct =0.1,
+                               slot = "data")
+
+# Cut off on p adjusted value
+section1MarkersRNA <- section1MarkersRNA[which(section1MarkersRNA$p_val_adj < 0.05),]
+
+section1TfRNA <- section1MarkersRNA[which(section1MarkersRNA$gene %in% tf_tested),]
+
+length(unique(section1TfRNA$gene))
+
+#section1TfTopRNA <- section1MarkersRNA[which(section1MarkersRNA$avg_logFC> 0.25),]
+
+dupRNA <- section1TfRNA[which(duplicated(section1TfRNA$gene,fromLast = FALSE) |duplicated(section1TfRNA$gene,fromLast = TRUE )),]
+
+dupRNA[order(rownames(dupRNA)),]
+
+uniRNA <- section1TfRNA[which(section1TfRNA$gene %in% dupRNA$gene == F),]
+
+length(unique(uniRNA$gene))
+
+```
+## Same with scenic aucell RNA score (with mask dropouts option at ctx step)
+```{r}
+
+#Test states differences
+Idents(seuratOrdered) <- "Section"
+
+#Set AUCell slot 
+DefaultAssay(seuratOrdered) <- "AUCellRNA"
+
+
+sectionScenicRegRNA <- FindAllMarkers(seuratOrdered,
+                               only.pos = T,
+                               logfc.threshold= 0,
+                               pseudocount.use = 1,
+                               min.pct = 0.1)
+
+# Compute true mean difference in score because Seurat comput only logFC
+# The featureDiff functions is loaded from ../R_src/computeDiffFun.R file
+
+sectionScenicRegRNA$avg_diff <- NA
+sectionScenicRegRNA$cluster <- factor(sectionScenicRegRNA$cluster,levels = levels(seuratOrdered$Section ))
+
+source("../../herault_et_al/scHSC_herault/R_src/computeDiffFun.R")
+
+for (rm in rownames(sectionScenicRegRNA)) {
+  feature <- sectionScenicRegRNA[rm,"gene"]
+  cells.1 <- colnames(seuratOrdered)[which(seuratOrdered$Section == sectionScenicRegRNA[rm,"cluster"])]
+  cells.2 <- colnames(seuratOrdered)[which(seuratOrdered$Section != sectionScenicRegRNA[rm,"cluster"])]
+  sectionScenicRegRNA[rm,"avg_diff"] <- featureDiff(seuratOrdered,cells.1,cells.2,feature)
+}
+
+sectionScenicRegActRNA <-sectionScenicRegRNA[which(endsWith(sectionScenicRegRNA$gene,suffix = "+)")),]
+sectionScenicRegInhRNA <-sectionScenicRegRNA[which(endsWith(sectionScenicRegRNA$gene,suffix = "-)")),]
+
+
+# cut off on p adjusted value
+sectionScenicRegActRNA <- sectionScenicRegActRNA[which(sectionScenicRegActRNA$p_val_adj < 0.05 & sectionScenicRegActRNA$avg_diff > 0.0025),]
+dim(sectionScenicRegActRNA)
+length(unique(sectionScenicRegActRNA$gene))
+
+
+sectionScenicRegInhRNA <- sectionScenicRegInhRNA[which(sectionScenicRegInhRNA$p_val_adj < 0.05 & sectionScenicRegInhRNA$avg_diff > 0.0025),]
+dim(sectionScenicRegInhRNA)
+length(unique(sectionScenicRegInhRNA$gene))
+
+
+## Look at correspondance with Tf markers in RNA
+
+sectionScenicRegActRNA$gene <- str_split_fixed(sectionScenicRegActRNA$gene,pattern = "\\(",n=2)[,1]
+
+tfRnaAct <- inner_join(section1TfRNA[,c("cluster","gene")],sectionScenicRegActRNA[,c("cluster","gene")])
+
+
+
+sectionScenicRegInhRNA$gene <- str_split_fixed(sectionScenicRegInhRNA$gene,pattern = "\\(",n=2)[,1]
+
+tfRnaInh <- inner_join(section1TfRNA[,c("cluster","gene")],sectionScenicRegInhRNA[,c("cluster","gene")])
+
+tfKept <- inner_join(tfRnaAct[,c("cluster","gene")],tfRnaInh[,c("cluster","gene")])
+
+```
+
+```{r}
+ActKept <- sectionScenicRegActRNA[which(sectionScenicRegActRNA$p_val_adj < 0.05 & sectionScenicRegActRNA$avg_diff > 0.003),]
+
+length(unique(ActKept$gene))
+
+tfRnaAct2 <- inner_join(section1TfRNA[which(section1TfRNA$p_val_adj < 0.05 & section1TfRNA$avg_logFC > 0.25),c("cluster","gene")],
+                        sectionScenicRegActRNA[which(sectionScenicRegActRNA$p_val_adj < 0.05 & sectionScenicRegActRNA$avg_logFC > 0.003),c("cluster","gene")])
+
+#Find Tf for starting point only on AUCell 
+Act <- sectionScenicRegActRNA[which(sectionScenicRegActRNA$p_val_adj < 0.05 & sectionScenicRegActRNA$avg_diff > 0.0025),]
+
+Act_1_Start <- Act[which(Act$cluster == "1_Start"),]
+
+Act_2_End <- Act[which(Act$cluster == "2_End"),]
+
+Act_5_End <- Act[which(Act$cluster == "5_End"),]
+
+
+
+```
+Find some possible constraint by merging 3,4,4_end,5,5_end ; 1 and 1_start ; 2,2_end
+```{r}
+
+```
+
+Proposal for ASP input
+
+```{r}
+influenceGraphTable <- rbind(bonzanni[,c("tf","target","mor")],scenicNetRnaMaskDrop[,c("tf","target","mor")]) 
+
+influenceGraphTable <- influenceGraphTable[which(influenceGraphTable$tf %in% tfRnaAct2$gene),]
+influenceGraphTable <- influenceGraphTable[which(influenceGraphTable$target %in% tfRnaAct2$gene),]
+
+
+dim(influenceGraphTable)
+dim(unique(influenceGraphTable))
+
+influenceGraphTable <- unique(influenceGraphTable)
+
+influenceGraph <- graph_from_data_frame(d =influenceGraphTable[,c("tf","target","mor")], directed = TRUE, vertices = NULL)
+
+length(E(influenceGraph))
+length(V(influenceGraph))
+table(influenceGraphTable$mor)
+
+
+edgesInfluenceGraph <- influenceGraphTable[,"mor"]
+edgesInfluenceGraph.color <- rep("blue",length(edgesInfluenceGraph))
+edgesInfluenceGraph.color[which(edgesInfluenceGraph == -1)] <- "red"
+
+plot(influenceGraph, 
+     edge.color = edgesInfluenceGraph.color,
+     main="Influence graph bonzanni  TFs\nall Dorothea regulons",
+     vertex.size =30,
+     vertex.shape = "rectangle",
+     vertex.label.cex = 1.5)
+
+
+```
+Minimal ASP input, selected determinant TF
+
+```{r,fig.height=10}
+# selectedTF <- tfRnaAct$gene[tfRnaAct$gene %in% colnames(bonzanni_adja)]
+# selectedTF
+# selectedTF <- c("Fli1","Erg","Gata2","Fos","Junb","Jun","Jund","Myb","Sox4","Irf8","Cebpe","Cebpa","E2f1","Trim28","Ybx1")
+
+#selectedTF <- unique(c("Fli1","Erg","Gata2","Fos","Junb","Jun","Jund","Myb","Sox4","Irf8","Cebpe","Cebpa","E2f1","Gata1","Ybx1","Zfpm1","Myc","Ezh2"))
+
+selectedTF <- c("Gata1","Cebpa","Tal1","Gata3","Gata2","Junb","Myc")
+
+
+influenceGraphTableMin <- scenicNetRnaMaskDrop[,c("tf","target","mor")]
+
+influenceGraphTableMinTemp <- influenceGraphTableMin[which(influenceGraphTableMin$tf %in% tfRnaAct2$gene &influenceGraphTableMin$target %in% tfRnaAct2$gene),]
+
+influenceGraphTableMin <- influenceGraphTableMin[which(influenceGraphTableMin$tf %in% selectedTF),]
+influenceGraphTableMin <- influenceGraphTableMin[which(influenceGraphTableMin$target %in% selectedTF),]
+
+
+dim(influenceGraphTableMin)
+dim(unique(influenceGraphTableMin))
+
+influenceGraphTableMin <- unique(influenceGraphTableMin)
+
+influenceGraphMin <- graph_from_data_frame(d =influenceGraphTableMin[,c("tf","target","mor")], directed = TRUE, vertices = NULL)
+
+length(E(influenceGraphMin))
+length(V(influenceGraphMin))
+table(influenceGraphMin$mor)
+
+
+edgesInfluenceGraphMin <- influenceGraphTableMin[,"mor"]
+edgesInfluenceGraphMin.color <- rep("blue",length(edgesInfluenceGraphMin))
+edgesInfluenceGraphMin.color[which(edgesInfluenceGraphMin == -1)] <- "red"
+
+plot(influenceGraphMin, 
+     edge.color = edgesInfluenceGraphMin.color,
+     main="Influence graph bonzanni  TFs\nall Dorothea regulons",
+     vertex.size =30,
+     vertex.shape = "rectangle",
+     vertex.label.cex = 1.5,
+     layout=layout.circle)
+
+
+```
+Same with bonzanni interactions added
+```{r fig.height=10}
+influenceGraphTable <- rbind(bonzanni[,c("tf","target","mor")],scenicNetRna[,c("tf","target","mor")]) 
+influenceGraphTable <- unique(influenceGraphTable)
+influenceGraphTableMinTemp <- influenceGraphTableMin[which(influenceGraphTableMin$tf %in% tfRnaAct2$gene &influenceGraphTableMin$target %in% tfRnaAct2$gene),]
+
+influenceGraphTable <- influenceGraphTable[which(influenceGraphTable$tf %in% selectedTF),]
+influenceGraphTable <- influenceGraphTable[which(influenceGraphTable$target %in% selectedTF),]
+
+
+dim(influenceGraphTable)
+dim(unique(influenceGraphTable))
+
+influenceGraphTable <- unique(influenceGraphTable)
+
+influenceGraph <- graph_from_data_frame(d =influenceGraphTable[,c("tf","target","mor")], directed = TRUE, vertices = NULL)
+
+length(E(influenceGraph))
+length(V(influenceGraph))
+table(influenceGraph$mor)
+
+
+edgesinfluenceGraph <- influenceGraphTable[,"mor"]
+edgesinfluenceGraph.color <- rep("blue",length(edgesinfluenceGraph))
+edgesinfluenceGraph.color[which(edgesinfluenceGraph == -1)] <- "red"
+
+plot(influenceGraph, 
+     edge.color = edgesinfluenceGraph.color,
+     main="Influence graph Bonzanni and marker TFs",
+     vertex.size =30,
+     vertex.shape = "rectangle",
+     vertex.label.cex = 1.5,
+     layout=layout.circle)
+```
+
+
+
+Table for constraints
+```{r}
+ActKept[which(ActKept$gene %in% selectedTF),c("cluster","gene")] 
+tfRnaAct2[which(tfRnaAct2$gene %in% selectedTF),]
+
+unique(ActKept$gene[which(ActKept$gene %in% selectedTF)])
+```
+## TF selected not targeted in scenic interaction
+```{r}
+influenceGraphTableMin[which((influenceGraphTableMin$tf %in% unique(influenceGraphTableMin$target) == F)),]
+```
+
+
+
+## View selected TF in violins
+```{r, fig.height=14,fig.width=10}
+DefaultAssay(seuratOrdered) <- "RNA"
+selectedTF <- c("Tal1","Gata2","Junb","Gata3","Myc","Cebpa","Gata1")
+VlnPlot(seuratOrdered,features = selectedTF,pt.size = 0.1)
+```
+```{r ,fig.height = 10}
+Idents(seuratOrdered) <- "numclust"
+DefaultAssay(seuratOrdered) <- "RNA"
+selectedTF <- c("Gata1","Cebpa","Tal1","Myc","Gata3","Gata2","Junb")
+VlnPlot(seuratOrdered,features = selectedTF,pt.size = 0.1,split.by = "AGE")
+```
+
+
+
+```{r fig.height=14,fig.width=10}
+DefaultAssay(seuratOrdered) <- "AUCellRNA"
+selectedTF <- c("Gata1","Cebpa","Tal1","Myc","Klf1","Ikzf1","Gata2")
+VlnPlot(seuratOrdered,features = paste0(c(selectedTF),"(+)"),pt.size = 0)
+VlnPlot(seuratOrdered,features = paste0(c(selectedTF),"(-)"),pt.size = 0)
+
+```
+
+
+## Test Saran code to write ASP graph here
+
+```{r}
+maxClause <- 3
+network <- influenceGraphTableMin
+colnames(network) <- c("TF","target","interaction")
+
+asp <- data.frame()
+nb <- union(network$TF,network$target)
+asp <- paste('nbnode(',length(union(network$TF,network$target)),').', sep = '')
+for(i in 1:length(nb)){
+  asp <- rbind(asp,
+  	paste('node("',nb[i],'").', 
+  	sep = ''))
+}
+for(i in 1:dim(network)[1]){
+  asp <- rbind(asp,
+  	paste('in("',network$TF[i],'","',network$target[i],'",',network$interaction[i],").", 
+  	sep = ''))
+}
+
+n <- dim(network[network$target==nb[i],])[1]
+k <- min(dim(combn(n,floor(n/2)))[2],maxClause)
+
+for(i in 1:length(nb)){
+  asp <- rbind(asp,
+  	paste('maxC("',nb[i],'",',k,').', 
+  	sep = ''))
+}
+
+# be careful if launched several time it will append rows to existing file
+write.table(asp, file = "../output/ASP/inlfuenceGraphMin.asp", 
+	quote = FALSE, 
+	row.names = FALSE, 
+	col.names = FALSE,
+	append = F)
+
+```
+
+## Write influence graph with Bonzanni interaction
+
+```{r}
+network <- influenceGraphTable
+colnames(network) <- c("TF","target","interaction")
+
+asp <- data.frame()
+nb <- union(network$TF,network$target)
+asp <- paste('nbnode(',length(union(network$TF,network$target)),').', sep = '')
+for(i in 1:length(nb)){
+  asp <- rbind(asp,
+  	paste('node("',nb[i],'").', 
+  	sep = ''))
+}
+
+n <- dim(network[network$target==nb[i],])[1]
+k <- max(dim(combn(n,floor(n/2)))[2],maxClause)
+
+for(i in 1:length(nb)){
+  asp <- rbind(asp,
+  	paste('maxC("',nb[i],'",',k,').', 
+  	sep = ''))
+}
+for(i in 1:length(nb)){
+  asp <- rbind(asp,
+  	paste('maxC("',nb[i],'",',dim(network[network$target==nb[i],])[1],').', 
+  	sep = ''))
+}
+
+# be careful if launched several time it will append rows to existing file
+write.table(asp, file = "../output/ASP/inlfuenceGraphMin.asp", 
+	quote = FALSE, 
+	row.names = FALSE, 
+	col.names = FALSE,
+	append = F)
+```
+
+
+
