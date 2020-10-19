@@ -6,8 +6,8 @@ dependencies:
   - _libgcc_mutex=0.1=conda_forge
   - _openmp_mutex=4.5=1_llvm
   - _r-mutex=1.0.1=anacondar_1
-  - binutils_impl_linux-64=2.34=h53a641e_0
-  - binutils_linux-64=2.34=hc952b39_18
+  - binutils_impl_linux-64
+  - binutils_linux-64
   - bwidget=1.9.14=0
   - bzip2=1.0.8=h516909a_2
   - ca-certificates=2020.4.5.1=hecc5488_0
@@ -32,7 +32,7 @@ dependencies:
   - joblib=0.14.1=py_0
   - jpeg=9c=h14c3975_1001
   - krb5=1.17.1=h2fd8d38_0
-  - ld_impl_linux-64=2.34=h53a641e_0
+  - ld_impl_linux-64
   - libblas=3.8.0=16_openblas
   - libcblas=3.8.0=16_openblas
   - libcurl=7.69.1=hf7181ac_0

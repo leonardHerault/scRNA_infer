@@ -1,0 +1,225 @@
+  description: |
+    Note\: yaml format prohibits using tabulations.
+
+    Cluster config for SingleCell_RNAseq 10X data analysis pipeline
+
+  author: "Leonard Herault"
+
+  __default__:
+    cpus-per-task : "12"
+    N : "1"
+    time : "18:00:00"
+    name : "{rule}"
+    partition : "fast"
+    account : "scRNA_HSPC_Aging"
+    mem : "64000"
+    output : "cluster/snakemake/{rule}.output"
+    error : "cluster/snakemake/{rule}.error"
+
+  dca:
+    cpus-per-task : "20"
+    N : "1"
+    time : "12:00:00"
+    name : "{rule}"
+    partition : "fast"
+    account : "scRNA_HSPC_Aging"
+    mem : "64000"
+    output : "cluster/snakemake/{rule}.output"
+    error : "cluster/snakemake/{rule}.error"
+
+  grnboost_rna:
+    cpus-per-task : "20"
+    N : "1"
+    time : "6-12:00:00"
+    name : "{rule}"
+    partition : "long"
+    account : "scRNA_HSPC_Aging"
+    mem : "200000"
+    output : "cluster/snakemake/{rule}.output"
+    error : "cluster/snakemake/{rule}.error"
+    
+  multiple_grnboost_rna:
+    cpus-per-task : "20"
+    N : "1"
+    time : "6-12:00:00"
+    name : "{rule}"
+    partition : "long"
+    account : "scRNA_HSPC_Aging"
+    mem : "200000"
+    output : "cluster/snakemake/{rule}.output"
+    error : "cluster/snakemake/{rule}.error"
+
+  multiple_grnboost_rna_by_age:
+    cpus-per-task : "20"
+    N : "1"
+    time : "6-12:00:00"
+    name : "{rule}"
+    partition : "long"
+    account : "scRNA_HSPC_Aging"
+    mem : "200000"
+    output : "cluster/snakemake/{rule}.output"
+    error : "cluster/snakemake/{rule}.error"
+
+  grnboost_dca:
+    cpus-per-task : "26"
+    N : "1"
+    time : "10-00:00:00"
+    name : "{rule}"
+    partition : "long"
+    account : "scRNA_HSPC_Aging"
+    mem : "200000"
+    output : "cluster/snakemake/{rule}.output"
+    error : "cluster/snakemake/{rule}.error"
+
+  prune_modules_dca_with_cis_target_csv:
+    cpus-per-task : "26"
+    N : "1"
+    time : "5-12:00:00"
+    name : "{rule}"
+    partition : "long"
+    account : "scRNA_HSPC_Aging"
+    mem : "200000"
+    output : "cluster/snakemake/{rule}.output"
+    error : "cluster/snakemake/{rule}.error"
+
+  prune_modules_rna_with_cis_target_csv:
+    cpus-per-task : "20"
+    N : "1"
+    time : "5-12:00:00"
+    name : "{rule}"
+    partition : "long"
+    account : "scRNA_HSPC_Aging"
+    mem : "200000"
+    output : "cluster/snakemake/{rule}.output"
+    error : "cluster/snakemake/{rule}.error"
+  
+  prune_modules_rna_maskDropouts_with_cis_target_csv:
+    cpus-per-task : "20"
+    N : "1"
+    time : "5-12:00:00"
+    name : "{rule}"
+    partition : "long"
+    account : "scRNA_HSPC_Aging"
+    mem : "200000"
+    output : "cluster/snakemake/{rule}.output"
+    error : "cluster/snakemake/{rule}.error"
+    
+  multiple_prune_modules_rna_maskDropouts_with_cis_target_csv:
+    cpus-per-task : "20"
+    N : "1"
+    time : "5-12:00:00"
+    name : "{rule}"
+    partition : "long"
+    account : "scRNA_HSPC_Aging"
+    mem : "200000"
+    output : "cluster/snakemake/{rule}.output"
+    error : "cluster/snakemake/{rule}.error"
+
+  multiple_prune_modules_rna_maskDropouts_with_cis_target_csv_by_age:
+    cpus-per-task : "20"
+    N : "1"
+    time : "5-12:00:00"
+    name : "{rule}"
+    partition : "long"
+    account : "scRNA_HSPC_Aging"
+    mem : "200000"
+    output : "cluster/snakemake/{rule}.output"
+    error : "cluster/snakemake/{rule}.error"
+    
+  
+
+  
+  aucell_TF_seurat_regulon_dca:
+    cpus-per-task : "26"
+    N : "1"
+    time : "1-00:00:00"
+    name : "{rule}"
+    partition : "long"
+    account : "scRNA_HSPC_Aging"
+    mem : "120000"
+    output : "cluster/snakemake/{rule}.output"
+    error : "cluster/snakemake/{rule}.error"  
+  
+  multiple_aucell_TF_seurat_regulon_dca:
+    cpus-per-task : "26"
+    N : "1"
+    time : "1-00:00:00"
+    name : "{rule}"
+    partition : "long"
+    account : "scRNA_HSPC_Aging"
+    mem : "120000"
+    output : "cluster/snakemake/{rule}.output"
+    error : "cluster/snakemake/{rule}.error"
+
+  aucell_TF_seurat_regulon_rna:
+    cpus-per-task : "26"
+    N : "1"
+    time : "1-00:00:00"
+    name : "{rule}"
+    partition : "long"
+    account : "scRNA_HSPC_Aging"
+    mem : "120000"
+    output : "cluster/snakemake/{rule}.output"
+    error : "cluster/snakemake/{rule}.error"
+
+  aucell_TF_seurat_regulon_rna_maskDropouts:
+    cpus-per-task : "26"
+    N : "1"
+    time : "1-00:00:00"
+    name : "{rule}"
+    partition : "long"
+    account : "scRNA_HSPC_Aging"
+    mem : "200000"
+    output : "cluster/snakemake/{rule}.output"
+    error : "cluster/snakemake/{rule}.error"
+
+  dorothea:
+    cpus-per-task : "24"
+    N : "1"
+    time : "1-00:00:00"
+    name : "{rule}"
+    partition : "long"
+    account : "scRNA_HSPC_Aging"
+    mem : "200000"
+    output : "cluster/snakemake/{rule}.output"
+    error : "cluster/snakemake/{rule}.error"
+
+  dorothea_all_levels:
+    cpus-per-task : "24"
+    N : "1"
+    time : "1-00:00:00"
+    name : "{rule}"
+    partition : "long"
+    account : "scRNA_HSPC_Aging"
+    mem : "200000"
+    output : "cluster/snakemake/{rule}.output"
+    error : "cluster/snakemake/{rule}.error"
+
+  dorothea_dca_all_levels:
+    cpus-per-task : "24"
+    N : "1"
+    time : "1-00:00:00"
+    name : "{rule}"
+    partition : "long"
+    account : "scRNA_HSPC_Aging"
+    mem : "200000"
+    output : "cluster/snakemake/{rule}.output"
+    error : "cluster/snakemake/{rule}.error"
+  
+  dorothea_dca:
+    cpus-per-task : "24"
+    N : "1"
+    time : "1-00:00:00"
+    name : "{rule}"
+    partition : "long"
+    account : "scRNA_HSPC_Aging"
+    mem : "200000"
+    output : "cluster/snakemake/{rule}.output"
+    error : "cluster/snakemake/{rule}.error"
+
+
+
+    
+    
+    
+
