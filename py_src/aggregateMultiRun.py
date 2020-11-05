@@ -57,12 +57,12 @@ def main(argv):
             
 
     regulonCount = Counter(regulons)
-    regulonKept = {k: v for k, v in regulonCount.items() if v > cutOff}
+    regulonKept = {k: v for k, v in regulonCount.items() if v >= cutOff}
             
     aggregatedJsonKept = { key: aggregatedJson[key] for key in regulonKept }
             
     for r in regulonKept:
-        aggregatedJsonKept[r] = {k: v for k, v in Counter(aggregatedJsonKept[r]).items() if v > cutOff} 
+        aggregatedJsonKept[r] = {k: v for k, v in Counter(aggregatedJsonKept[r]).items() if v >= cutOff} 
             
             
     aggregatedJsonKeptNonEmpty = {k: v for k, v in aggregatedJsonKept.items() if len(v) > 0}
