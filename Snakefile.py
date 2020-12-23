@@ -25,8 +25,9 @@ rule all:
           "output/publicData/trrust.tsv",
           "output/regulonAnalysis/clusterMarkerRegulonTable.tsv",
           "output/regulonAnalysis/infGraphTable.tsv",
-          "output/Inference/bonesis/install_done",
-          "output/Inference/bonesis/solutions.p"
+          "output/regulonAnalysis/infGraphTable50.tsv",
+          "output/Inference/smallNet/solutions.p"
+          #"output/Inference/bonesis/solutions.p"
     
 rule getDataMatrixFromPreviousWork:
     input: inputDataDir+"/report/seurat_report.rds",
@@ -158,15 +159,26 @@ rule analyseRegulonScore:
       "Rscript R_src/regulonMarkerCL.R -i {input.seurat} -t {input.tfList} \
       -r {input.regulonScore} -o output/regulonAnalysis/ -c -a AGE"
 
-rule makeInfluenceGraph:
+rule makeInfluenceGraphAll:
     input: tfList = "input/selectedTF.txt",
-           regulonTable = "output/regulonAnalysis/mainRegulonTable.tsv",
-           biblioNet = "input/KrumsiekAdapted.reggraph",
+           regulonTable = "output/regulonAnalysis/mainRegulonTable.tsv"
     output: "output/regulonAnalysis/infGraphTable.tsv"
-    params: recovTimesThreshold = config["regulonAnalysis"]["recovTimesThresholdforInfGraph"]
+    params: recovTimesThreshold = config["regulonAnalysis"]["recovTimesThresholdforInfGraph"],
+            biblioNet = "input/KrumsiekAdapted.reggraph+publicData/Bonzanni_2013.reggraph"
     conda: seurat_monocle_env
     shell: "Rscript R_src/makeInfluenceGraphCL.R -t {input.tfList} -r {input.regulonTable} \
-    -o output/regulonAnalysis/ -c -b {input.biblioNet} -v {params.recovTimesThreshold}"
+    -o output/regulonAnalysis/ -c -b {params.biblioNet}"
+
+rule makeInfluenceGraphTop:
+    input: tfList = "input/selectedTF.txt",
+           regulonTable = "output/regulonAnalysis/mainRegulonTable.tsv"
+    output: "output/regulonAnalysis/infGraphTable50.tsv"
+    params: recovTimesThreshold = config["regulonAnalysis"]["recovTimesThresholdforInfGraph"],
+            biblioNet = "input/KrumsiekAdapted.reggraph"
+    conda: seurat_monocle_env
+    shell: "Rscript R_src/makeInfluenceGraphCL.R -t {input.tfList} -r {input.regulonTable} \
+    -o output/regulonAnalysis/ -c -b {params.biblioNet} -v {params.recovTimesThreshold}"
+
 
 rule installBonesis:
     output: "output/Inference/bonesis/install_done"
@@ -176,12 +188,14 @@ rule installBonesis:
       "cd output/Inference/;git clone {params.gitUrl};cd bonesis;pip install --user -e .;touch install_done"
 
 rule bonesis:
-    input: "output/regulonAnalysis/infGraphTable.tsv"
-    output: "output/Inference/bonesis/solutions.p"
+    input: graph = "output/regulonAnalysis/infGraphTable50.tsv",
+           obsData = "input/obsData.csv",
+           install = "output/Inference/bonesis/install_done"
+    output: "output/Inference/smallNet/solutions.p"
     conda: bonesis_env
     threads: 20
     shell: 
-      "python py_src/inferMpbn.py -o output/Inference/bonesis/ -c {threads} -i {input}" 
+      "python py_src/inferSmallestMpbnExact.py -o output/Inference/smallNet -c {threads} -i {input.graph} -d {input.obsData}" 
 
       
 rule downloadRegDatabases:
