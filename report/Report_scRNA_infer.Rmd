@@ -14,12 +14,12 @@ knitr::opts_chunk$set(echo = TRUE)
 suppressMessages(library(ggplot2))
 suppressMessages(library(Seurat))
 suppressMessages(library(monocle))
-suppressMessages(library(BoolNet))
+#suppressMessages(library(BoolNet))
 suppressMessages(library(dplyr))
 suppressMessages(library(igraph))
 suppressMessages(library(plyr))
 suppressMessages(library(stringr))
-
+suppressMessages(library(grid))
 suppressMessages(library(gridExtra))
 suppressMessages(library(RColorBrewer))
 
@@ -35,9 +35,7 @@ colnames(bonzanni) <- c("tf","mor","target")
 bonzanni$mor[which(bonzanni$mor == "-|")] <- -1
 bonzanni$mor[which(bonzanni$mor == "->")] <- 1
 
-bonzanni$interaction <- paste(bonzanni$tf,
-                              bonzanni$target,
-                              bonzanni$mor,sep ="_")
+
 
 for (r in rownames(bonzanni)) {
   if(bonzanni[r,"mor"] == "-?") {
@@ -49,6 +47,9 @@ for (r in rownames(bonzanni)) {
   }
 }
 
+bonzanni$interaction <- paste(bonzanni$tf,
+                              bonzanni$target,
+                              bonzanni$mor,sep ="_")
 #show bonznni network tf
 
 
@@ -62,6 +63,45 @@ bonzanni_adja <- as_adjacency_matrix(graph = graphBonzanniOri)
 
 
 ```
+
+
+## Loading Krumsiek adapted boolean network
+
+```{r}
+KrumAdapt <- read.table("../output/Modelling/MatchingDataStateNet.reggraph",sep = " ",stringsAsFactors  = F)
+colnames(KrumAdapt) <- c("tf","mor","target")
+KrumAdapt$mor[which(KrumAdapt$mor == "-|")] <- -1
+KrumAdapt$mor[which(KrumAdapt$mor == "->")] <- 1
+
+
+
+for (r in rownames(KrumAdapt)) {
+  if(KrumAdapt[r,"mor"] == "-?") {
+    #print(KrumAdapt[r,])
+    neg <- KrumAdapt[r,] 
+    neg$mor <- -1
+    KrumAdapt[r,"mor"] <- 1
+    KrumAdapt <- rbind(KrumAdapt,neg)
+  }
+}
+
+KrumAdapt$interaction <- paste(KrumAdapt$tf,
+                              KrumAdapt$target,
+                              KrumAdapt$mor,sep ="_")
+#show bonznni network tf
+
+
+graphKrumAdaptOri <- graph_from_data_frame(KrumAdapt[c(1,3,2)], directed = TRUE, vertices = NULL)
+edgesOri <- KrumAdapt[,"mor"]
+edge.color.ori <- rep("blue",length(edgesOri))
+edge.color.ori[which(edgesOri == -1)] <- "red"
+
+KrumAdapt_adja <- as_adjacency_matrix(graph = graphKrumAdaptOri)
+
+
+
+```
+
 
 ## Backgournd tf
 
@@ -244,6 +284,57 @@ plot(scenicRnaMaskDropGraphBonzanniShared,
 vertex.label.cex = 1.5)
 
 ```
+
+```{r, fig.height=15,fig.width=14}
+
+#compare with krumAdpa network tf
+scenicNetRnaMaskDropKrumAdapt <- scenicNetRnaMaskDrop[which(scenicNetRnaMaskDrop$tf %in% colnames(KrumAdapt_adja) & scenicNetRnaMaskDrop$target %in% colnames(KrumAdapt_adja)),c("tf","target","mor")]
+
+inner_join(scenicNetRnaMaskDropKrumAdapt,KrumAdapt)
+
+#
+scenicNetRnaMaskDropKrumAdaptGraph <- graph_from_data_frame(scenicNetRnaMaskDropKrumAdapt, directed = TRUE, vertices = NULL)
+
+edges.rna <- scenicNetRnaMaskDropKrumAdapt[,"mor"]
+edge.color.rna <- rep("blue",length(edges.rna))
+edge.color.rna[which(edges.rna == -1)] <- "red"
+
+scenicRnaMaskDropInterKrumAdapt <- inner_join(scenicNetRnaMaskDropKrumAdapt,KrumAdapt)
+
+scenicRnaMaskDropGraphKrumAdaptShared <- graph_from_data_frame(scenicRnaMaskDropInterKrumAdapt,directed = TRUE, vertices = NULL)
+
+
+edgesShared.rnaMaskDrop <- scenicRnaMaskDropInterKrumAdapt[,"mor"]
+edgesShared.color.rnaMaskDrop <- rep("blue",length(edgesShared.rnaMaskDrop))
+edgesShared.color.rnaMaskDrop[which(edgesShared.rnaMaskDrop == -1)] <- "red"
+
+par(mfrow=c(2,2))
+plot(scenicNetRnaMaskDropKrumAdaptGraph, 
+     edge.color = edge.color.rna,
+     main="Influence graph KrumAdapt  TFs\nScenic RNA regulons",
+     vertex.size =30,
+     vertex.shape = "rectangle",
+vertex.label.cex = 1.5)
+plot(graphKrumAdaptOri,
+     edge.color = edge.color.ori,
+     main="Influence graph KrumAdapt",
+     vertex.size =30,
+     vertex.shape = "rectangle",
+vertex.label.cex = 1.5)
+plot(scenicRnaMaskDropGraphKrumAdaptShared,
+     edge.color = edgesShared.color.rnaMaskDrop,
+     main="Influence graph KrumAdapt\nrecovered in Scenic RNA regulons",
+     vertex.size =30,
+     vertex.shape = "rectangle",
+vertex.label.cex = 1.5)
+```
+
+
+
+
+
+
+
 ## Significance of the enrichment in Bonzanni interaction for the Scenic RNA regulons
 Take all the mouse TF took as input in the workflow for background.
 
@@ -265,6 +356,31 @@ length(which(endsWith(interactionMarkedMaskDrop,suffix = "_1")))/length(which(en
 length(which(endsWith(interactionMarkedMaskDrop,suffix = "_-1")))/length(which(endsWith(bonzanni$interaction,"_-1")))
 
 ```
+## Significance of the enrichment in Bonzanni interaction for the Scenic RNA regulons
+Take all the mouse TF took as input in the workflow for background.
+
+```{r}
+#source("../../herault_et_al/scHSC_herault/R_src/Enrichment.R")
+
+
+interactionMarkedMaskDrop <- scenicNetRnaMaskDrop$interaction[which(scenicNetRnaMaskDrop$interaction %in% KrumAdapt$interaction)] 
+
+#tf_tested <- unique(tf_dorothea_ABC$tf)
+#backgroundInteraction <- 2*(length(tf_tested)*(length(tf_tested)+1))/2 #complete graph plus self loop by two (inhibiton and activation)
+
+phyper(q=length(interactionMarkedMaskDrop) -1, 
+       m=length(KrumAdapt$interaction),                 
+       n=backgroundInteraction - length(KrumAdapt$interaction), k= length(scenicNetRnaMaskDrop$interaction), lower.tail=FALSE)
+
+length(which(endsWith(interactionMarkedMaskDrop,suffix = "_1")))/length(which(endsWith(KrumAdapt$interaction,"_1")))
+
+length(which(endsWith(interactionMarkedMaskDrop,suffix = "_-1")))/length(which(endsWith(KrumAdapt$interaction,"_-1")))
+
+```
+
+
+
+
 
 given the better result of mask dropout option we decide to continue with this scenic results for the building of influence graph and the search of constraints.
 
@@ -272,6 +388,23 @@ Loading of seurat and monocle results:
 ```{r}
 seurat <- readRDS("../../herault_et_al/scHSC_herault/report/seurat_report.rds")
 monocle <- readRDS("../../herault_et_al/scHSC_herault/report/monocle_report.rds")
+```
+
+## View selected TF in violins
+```{r, fig.height=7,fig.width=14}
+DefaultAssay(seurat) <- "RNA"
+Idents(seurat) <- "numclust"
+selectedTF <- c("Dnmt3a","E2f","Rb1","Trp53","Tet2","Sp1","Sp3","Itga6")
+
+Fzd <- rownames(seurat)[which(startsWith(rownames(seurat),prefix = "Fzd"))]
+
+
+selectedTF <- c("Dnmt3a","Rb1","Tet2","Sp1","Ociad1","Uhrf1")
+
+
+VlnPlot(seurat,features = selectedTF,pt.size = 0.1,split.by = "AGE")
+VlnPlot(seurat,features = selectedTF,pt.size = 0.1)
+
 ```
 
 ## Add the scenic results in new assays
@@ -510,8 +643,7 @@ Minimal ASP input, selected determinant TF
 
 #selectedTF <- unique(c("Fli1","Erg","Gata2","Fos","Junb","Jun","Jund","Myb","Sox4","Irf8","Cebpe","Cebpa","E2f1","Gata1","Ybx1","Zfpm1","Myc","Ezh2"))
 
-selectedTF <- c("Gata1","Cebpa","Tal1","Gata3","Gata2","Junb","Myc")
-
+selectedTF <- c("Gata2","Runx1","Klf1","Cebpa","Gata1","Fli1","Tal1","Spi1","Ikzf1","Myc","Junb","Erg","Egr1","Myb","Hoxb4","Gfi1")
 
 influenceGraphTableMin <- scenicNetRnaMaskDrop[,c("tf","target","mor")]
 
@@ -545,13 +677,130 @@ plot(influenceGraphMin,
      vertex.label.cex = 1.5,
      layout=layout.circle)
 
+selectedTF <- c("Gata2","Runx1","Klf1","Cebpa","Gata1","Fli1","Tal1","Spi1","Ikzf1","Myc","Junb","Erg","Egr1","Myb")
 
+
+
+
+
+hspc.combined.selectedTF <- ScaleData(seurat,features =paste0(c(selectedTF),"(+)"))
+
+
+
+
+mapal <- colorRampPalette(RColorBrewer::brewer.pal(11,"RdBu"))(256)
+
+DefaultAssay(seurat) <- "AUCellRNA"
+
+paste0(c(selectedTF),"(+)") %in% rownames(seurat)
+
+selectedTF_neg <- paste0(c(selectedTF),"(-)")[which(paste0(c(selectedTF),"(-)") %in% rownames(seurat))]
+
+
+test <- AverageExpression(
+  seurat,
+  slot = "data",
+  features = paste0(c(selectedTF),"(+)"),
+  return.seurat = T
+)
+
+test2 <- AverageExpression(
+  seurat,
+  add.ident = "AGE",
+  slot = "data",
+  features = paste0(c(selectedTF),"(+)"),
+  return.seurat = T
+)
+
+
+
+
+test_neg <- AverageExpression(
+  seurat,
+  slot = "data",
+  features = selectedTF_neg,
+  return.seurat = T
+)
+
+test2_neg <- AverageExpression(
+  seurat,
+  add.ident = "AGE",
+  slot = "data",
+  features =selectedTF_neg,
+  return.seurat = T
+)
+
+test@meta.data[,c("AGE","priming")] <- seurat@meta.data[,c("AGE","priming")]
+test@meta.data$numclust <- colnames(test)
+test2@meta.data[,c("AGE","priming")] <- seurat@meta.data[,c("AGE","priming")]
+test2@meta.data$numclust <- str_split_fixed(colnames(test2),"_",n=2)[,1]
+
+
+
+test_neg@meta.data[,c("AGE","priming")] <- seurat@meta.data[,c("AGE","priming")]
+test_neg@meta.data$numclust <- colnames(test_neg)
+test2@meta.data[,c("AGE","priming")] <- seurat@meta.data[,c("AGE","priming")]
+test2_neg@meta.data$numclust <- str_split_fixed(colnames(test2_neg),"_",n=2)[,1]
+
+Idents(test_neg) <- "numclust"
+Idents(test2_neg) <- "numclust"
+DoHeatmap(test_neg,features = selectedTF_neg)
+DoHeatmap(test2_neg,features = selectedTF_neg)
+
+Idents(test) <- "numclust"
+Idents(test2) <- "numclust"
+DoHeatmap(test,features = paste0(c(selectedTF),"(+)"))
+DoHeatmap(test2,features = paste0(c(selectedTF),"(+)"))
+
+
+DefaultAssay(seurat) <- "RNA"
+Idents(seurat) <- "numclust"
+
+
+test_gene<- AverageExpression(
+  seurat,
+  slot = "data",
+  features = selectedTF,
+  return.seurat = T
+)
+
+test2_gene <- AverageExpression(
+  seurat,
+  add.ident = "AGE",
+  slot = "data",
+  features =selectedTF,
+  return.seurat = T
+)
+
+Idents(test_gene) <- "numclust"
+Idents(test2_gene) <- "numclust"
+DoHeatmap(test_gene,features = selectedTF)
+DoHeatmap(test2_gene,features = selectedTF)
+
+
+# DoHeatmap(hspc.combined.selectedTF,features = paste0(c(selectedTF),"(+)"),group.by = "numclust",slot = "scale.data",
+#           cells = colnames(hspc.combined.selectedTF)[which(hspc.combined.selectedTF$priming == "primed")]) +   scale_fill_gradientn(colours = rev(mapal))
+# 
+# 
+# DoHeatmap(hspc.combined.selectedTF,features = paste0(c(selectedTF),"(+)"),group.by = "numclust",slot = "scale.data",
+#           cells = colnames(hspc.combined.selectedTF)[which(hspc.combined.selectedTF$priming == "non primed")]) +   scale_fill_gradientn(colours = rev(mapal))
+
+
+GetAssayData(test,slot = "scale.data")
 ```
+
+```{r}
+DefaultAssay(seurat) <- "RNA"
+VlnPlot(seurat,"Zfpm1",split.by = "AGE")
+```
+
 Same with bonzanni interactions added
+
 ```{r fig.height=10}
 influenceGraphTable <- rbind(bonzanni[,c("tf","target","mor")],scenicNetRna[,c("tf","target","mor")]) 
 influenceGraphTable <- unique(influenceGraphTable)
 influenceGraphTableMinTemp <- influenceGraphTableMin[which(influenceGraphTableMin$tf %in% tfRnaAct2$gene &influenceGraphTableMin$target %in% tfRnaAct2$gene),]
+
 
 influenceGraphTable <- influenceGraphTable[which(influenceGraphTable$tf %in% selectedTF),]
 influenceGraphTable <- influenceGraphTable[which(influenceGraphTable$target %in% selectedTF),]
@@ -599,28 +848,224 @@ influenceGraphTableMin[which((influenceGraphTableMin$tf %in% unique(influenceGra
 
 
 ## View selected TF in violins
-```{r, fig.height=14,fig.width=10}
+```{r, fig.height=14,fig.width=15}
 DefaultAssay(seuratOrdered) <- "RNA"
-selectedTF <- c("Tal1","Gata2","Junb","Gata3","Myc","Cebpa","Gata1")
+selectedTF <- c("Gata2","Zfpm1","Ikzf1","Klf1","Cebpa","Gata1","Fli1","Tal1","Spi1","Egr1","Junb","Dnmt3a","Tet2")
 VlnPlot(seuratOrdered,features = selectedTF,pt.size = 0.1)
+
+seurat$priming2 <- seurat$priming
+seurat$priming2[which(seurat$numclust == "ifn")] <- "primed" 
+
+seuratOrdered$priming2 <- seurat$priming
+seuratOrdered$priming2[which(seuratOrdered$numclust == "ifn")] <- "primed" 
+
+Idents(seuratOrdered) <- "priming2"
+Idents(seurat) <- "priming"
+VlnPlot(seurat,features = selectedTF,pt.size = 0.1)
+
+Idents(seurat) <- "priming"
+
+FindMarkers(seurat,features = c("Tet2","Dnmt3a","Sp1","Sirt1","Rb1"),ident.1 = "non primed",logfc.threshold = 0,min.pct = 0)
+
+seuratNp <- subset(seurat,idents = "primed")
+Idents(seuratNp) <- "AGE"
+FindConservedMarkers(seuratNp,features = c("Tet2","Dnmt3a","Sp1","Sirt1","Rb1"),grouping.var = "platform", ident.1 = "Old",logfc.threshold = 0,min.pct = 0)
+Idents(seurat) <- "AGE"
+
+FindConservedMarkers(seurat,features = c("Tet2","Dnmt3a","Sp1","Sirt1","Rb1"),grouping.var = "platform", ident.1 = "Old",logfc.threshold = 0,min.pct = 0)
+
 ```
-```{r ,fig.height = 10}
-Idents(seuratOrdered) <- "numclust"
+
+## View selected TF in violins
+```{r, fig.height=14,fig.width=15}
 DefaultAssay(seuratOrdered) <- "RNA"
-selectedTF <- c("Gata1","Cebpa","Tal1","Myc","Gata3","Gata2","Junb")
+selectedTF <- c("Sirt1","Pten","Tgfb1","Tgfb2","Tgfb3")
 VlnPlot(seuratOrdered,features = selectedTF,pt.size = 0.1,split.by = "AGE")
 ```
 
 
 
-```{r fig.height=14,fig.width=10}
-DefaultAssay(seuratOrdered) <- "AUCellRNA"
-selectedTF <- c("Gata1","Cebpa","Tal1","Myc","Klf1","Ikzf1","Gata2")
-VlnPlot(seuratOrdered,features = paste0(c(selectedTF),"(+)"),pt.size = 0)
-VlnPlot(seuratOrdered,features = paste0(c(selectedTF),"(-)"),pt.size = 0)
+```{r ,fig.height = 12}
+Idents(seuratOrdered) <- "numclust"
+DefaultAssay(seuratOrdered) <- "RNA"
+selectedTF <- c("Gata2","Zfpm1","Ikzf1","Klf1","Cebpa","Gata1","Fli1","Tal1","Spi1","Ets1","Sp1")
+selectedTF <- c("Egr1","Bmi1","Dnmt3a","Tet2","Epor","Txnip","Smad2","Ezh1","E2f4")
+selectedTF <- c("Ring1","Pcgf1")
+selectedTF <- c("Ezh2","Suz12","Eed","Ring1","Pcgf1","Cbx7","Dnmt3a")
+selectedTF <- c("Ebf1","Tet3","Uhrf1","Uhrf2","Cxxc4","Sirt1")
+
+selectedTF <- c("Gata2","Zfpm1","Ikzf1","Klf1","Cebpa","Gata1","Fli1","Tal1","Spi1","Ets1","Sp1")
+
+selectedTF <- c("Ptger4","Ptk2","Myc","Dnmt3a","Sirt2","Sirt3","Uhrf2","Sp1","Uhrf1")
+
+VlnPlot(seuratOrdered,features = selectedTF,pt.size = 0.1,split.by = "AGE")
+VlnPlot(seuratOrdered,features = selectedTF,pt.size = 0.1)
 
 ```
 
+
+```{r}
+Idents(seurat) <- "numclust"
+npMarkers <- FindAllMarkers(seurat,logfc.threshold = 0,min.pct = 0)
+
+seuratNP <- subset(x = seurat, idents = 'tgf')
+Idents(seuratNP) <- "AGE"
+npAging <- FindConservedMarkers(seuratNP,logfc.threshold = 0,min.pct = 0,grouping.var = "platform",ident.1 = "Old")
+remove(seuratNP)
+
+importantMarkers <- c("Cdkn1a","Tet2","Dnmt3a","Junb","Sp1")
+
+importantMarkers %in% rownames(tgfAging)
+
+DimPlot(seurat,reduction = "umap",label = T)
+```
+
+
+
+```{r fig.height=14,fig.width=30}
+DefaultAssay(seuratOrdered) <- "AUCellRNA"
+selectedTF <- c("Gata2","Zfpm1","Ikzf1","Klf1","Cebpa","Gata1","Fli1","Tal1","Spi1","Gfi1b","Egr1","Junb","Zbtb16","Mycn")
+VlnPlot(seuratOrdered,features = paste0(c(selectedTF),"(+)"),pt.size = 0,ncol = 3)
+VlnPlot(seuratOrdered,features = paste0(c(selectedTF),"(-)"),split.by = "sampleName",pt.size = 0,ncol =3)
+
+```
+## Load regulons targets
+
+```{r}
+regulons <- RJSONIO::fromJSON("../output/ScenicRNA/cis_target_maskDropouts/regulons.json")
+
+regulons <- regulons[which(endsWith(names(regulons),"(+)"))]
+
+# Interaction table of positive regulons and their target genes
+regulonsTable<- matrix(ncol = 2)
+
+for (i in names(regulons)) {
+  add <- cbind(rep(i,length(regulons[[i]])),regulons[[i]])
+  regulonsTable<- rbind(regulonsTable,add)
+}
+regulonsTable<- regulonsTable[-1,]
+
+colnames(regulonsTable) <- c("regulon","gene")
+regulonsTablePos <- as.data.frame(regulonsTable)
+
+
+# keep only the name of the tf for the regulons
+
+regulonsTablePos$regulon <- str_split_fixed(regulonsTablePos$regulon,"\\(",n=2)[,1]
+```
+
+
+```{r}
+
+regulons <- RJSONIO::fromJSON("../output/ScenicRNA/cis_target_maskDropouts//regulons.json")
+
+regulons <- regulons[which(endsWith(names(regulons),"(-)"))]
+# Interaction table of negative regulons and their target genes
+regulonsTable<- matrix(ncol = 2)
+
+for (i in names(regulons)) {
+  add <- cbind(rep(i,length(regulons[[i]])),regulons[[i]])
+  regulonsTable<- rbind(regulonsTable,add)
+}
+regulonsTable<- regulonsTable[-1,]
+
+colnames(regulonsTable) <- c("regulon","gene")
+regulonsTableNeg <- as.data.frame(regulonsTable)
+
+
+# keep only the name of the tf for the regulons
+
+regulonsTableNeg$regulon <- str_split_fixed(regulonsTableNeg$regulon,"\\(",n=2)[,1]
+```
+
+```{r fig.height=7.5,fig.width=7}
+
+regulonsTableNeg$mor <- "-"
+regulonsTablePos$mor <- "+"
+
+regulonsTable <- rbind(regulonsTableNeg,regulonsTablePos)
+
+selectedGenes <- c("Gata2","Zfpm1","Ikzf1","Klf1","Cebpa","Gata1","Fli1","Tal1","Spi1","Myc","Egr1","Junb")
+
+CDK46CycD <- c("Cdk4","Cdk6","Ccnd1","Ccnd2","Ccnd3")
+
+RegulonCDK46CycD <- regulonsTable[which(regulonsTable$regulon %in% selectedGenes & regulonsTable$gene %in% CDK46CycD),c("regulon","gene","mor")]
+
+RegulonCDK46CycD$gene <- "CDK46CycD"
+
+CIPKIP <- c("Cdkn1b","Cdkn1a","Cdkn1c")
+
+RegulonCIPKIP <- regulonsTable[which(regulonsTable$regulon %in% selectedGenes & regulonsTable$gene %in% CIPKIP),c("regulon","gene","mor")]
+
+RegulonCIPKIP$gene <- "CIPKIP"
+
+
+INK4 <-c("Cdkn2a","Cdkn2b","Cdkn2c","Cdkn2d")
+
+RegulonINK4 <- regulonsTable[which(regulonsTable$regulon %in% selectedGenes & regulonsTable$gene %in% INK4),c("regulon","gene","mor")]
+
+#RegulonINK4$gene <- "INK4"
+
+scenicNet <- regulonsTable[which(regulonsTable$regulon %in% selectedGenes & regulonsTable$gene %in% selectedGenes),c("regulon","gene","mor")]
+
+ #scenicNet[which(duplicated(scenicNet[,c(1,2)],fromLast=FALSE)|duplicated(scenicNet[,c(1,2)],fromLast=TRUE)),]
+
+scenicNet <- rbind(scenicNet,RegulonCDK46CycD,RegulonCIPKIP,RegulonINK4)
+
+
+scenicGraph<- graph_from_data_frame(scenicNet,directed = TRUE, vertices = NULL)
+
+edges.rnaMaskDrop <- scenicNet[,"mor"]
+edges.color.rnaMaskDrop <- rep("red",length(edges.rnaMaskDrop))
+edges.color.rnaMaskDrop[which(edges.rnaMaskDrop == "+")] <- "blue"
+
+plot(scenicGraph, 
+     vertex.size =30,
+     vertex.shape = "rectangle",
+     edge.color = edges.color.rnaMaskDrop,
+vertex.label.cex = 1.5,layout=layout.circle)
+
+
+handmadeNet <- read.table("../publicData/smallNet.reggraph",sep = " ",stringsAsFactors  = F)
+colnames(handmadeNet) <- c("regulon","mor","gene")
+handmadeNet$mor[which(handmadeNet$mor == "-|")] <- "-"
+handmadeNet$mor[which(handmadeNet$mor == "->")] <- "+"
+
+for (r in c(1:dim(handmadeNet)[1])) {
+  print(handmadeNet[,])
+}
+
+influenceGraph <- rbind(scenicNet,handmadeNet,stringsAsFactors  = F)
+influenceGraph$mor[which(influenceGraph$mor == "-")] <- "-1"
+influenceGraph$mor[which(influenceGraph$mor == "+")] <- "1"
+
+
+#newTFSelection <- c("Gata2","Zfpm1","Ikzf1","Klf1","Cebpa","Gata1","Fli1","Tal1","Spi1","Dnmt3a","Tet2","Egr1","Junb")
+newTFSelection <- c("Gata2","Zfpm1","Ikzf1","Klf1","Cebpa","Gata1","Fli1","Tal1","Spi1","Egr1","Junb")
+influenceGraph <- influenceGraph[which(influenceGraph$gene %in% newTFSelection & influenceGraph$regulon %in% newTFSelection),]
+#   
+# influenceGraph$regulon[which(influenceGraph$regulon %in% c("Dnmt3a","Tet2"))] <- "Dnmt3a_Tet2"
+# 
+# influenceGraph$gene[which(influenceGraph$gene %in% c("Dnmt3a","Tet2"))] <- "Dnmt3a_Tet2"
+
+write.table(influenceGraph,file = "influenceGraphForBonesis.tsv",quote = F,sep = "\t",row.names = F)
+write.table(handmadeNet,file = "influenceGraph0ForBonesis.tsv",quote = F,sep = "\t",row.names = F)
+
+
+```
+
+
+```{r, fig.heigth = 40,fig.width=20}
+allGenes <- unique(c(influenceGraph$regulon,influenceGraph$gene))
+
+VlnPlot(seurat,features = allGenes)
+
+```
+
+
+```{r}
+ VlnPlot(seurat,features = "Hdac2",split.by = "AGE")
+```
 
 ## Test Saran code to write ASP graph here
 
@@ -698,5 +1143,78 @@ write.table(asp, file = "../output/ASP/inlfuenceGraphMin.asp",
 	append = F)
 ```
 
+```{r}
 
+selectedGenes <- c("Ccnd1","Ccnd2","Cdk4","Cdk6")
+ptBranchingM <- max(pData(monocle)[which(pData(monocle)$State ==3),"Pseudotime"])
+
+genePseudotime <- function(gene, monocle1,monocle2) {
+  
+  p1 <- plot_genes_in_pseudotime(monocle1[gene],vertical_jitter = 0.01) +
+    scale_color_manual(values = colorTrajStateFinal)  +
+    theme(legend.position = "right",
+          axis.title.x = element_blank(),
+          axis.title.y = element_blank()) + 
+    NoLegend()+
+    geom_vline(xintercept = ptBranchingM,color = "red",linetype = "dashed",size =1) +
+    theme(strip.text = element_text(face = "italic")) 
+  
+  p2 <- plot_genes_in_pseudotime(monocle2[gene],vertical_jitter = 0.01) +
+    scale_color_manual(values = colorTrajStateFinal) + 
+    theme(legend.position = "right",
+          axis.title.x = element_blank(),
+          axis.title.y = element_blank()) + 
+    NoLegend()+
+    geom_vline(xintercept = ptBranchingM,color = "red",linetype = "dashed",size = 1) 
+  #+
+  #  facet_wrap(~feature_label,labeller=labeller,nrow = 1, 
+  #             ncol = 6, scales = "free_y") 
+  
+  p1$labels$x <- "Pseudotime"
+  p2$labels$x <- "Pseudotime"
+  
+  youngLim <- exp(ggplot_build(p1)$layout$panel_params[[1]]$y.range*log(10)) 
+  
+  oldLim <- exp(ggplot_build(p2)$layout$panel_params[[1]]$y.range*log(10)) 
+  
+  
+  if(which.max(c(youngLim[2],oldLim[2]))==1) {
+    p2 <- p2 + scale_y_log10(limits = youngLim)
+    p1 <- p1 + scale_y_log10(limits = youngLim)
+  } else{
+    p2 <- p2 + scale_y_log10(limits = oldLim)
+    p1 <- p1 + scale_y_log10(limits = oldLim)
+  }
+  
+  p2 <- p2 +  theme(strip.text = element_text(face = "italic"))
+  p <-  arrangeGrob(p1+NoLegend(),blank,p2+NoLegend(),blank,heights = c(2,0.2,2,0.2))
+  #p <-  arrangeGrob(p1,p2)
+  return(p)
+}
+colorTrajStateFinal <- c("#999999", "#E69F00", "#56B4E9", "#009E73","#F0E442")
+
+blank <- grid.rect(gp=gpar(col="white"),draw = F)
+
+fig6G_plots <- lapply(selectedGenes,genePseudotime,monocle1 = monocle[,which(pData(monocle)$AGE == "Young")],monocle2 = monocle[,which(pData(monocle)$AGE == "Old")])
+
+
+
+source("../../herault_et_al/scHSC_herault/R_src/funForPlot.R")
+
+legendPt <- g_legend(plot_genes_in_pseudotime(monocle["Ccnb1"]) + scale_color_manual(values = colorTrajStateFinal)  + guides(colour = guide_legend(override.aes = list(size=5))) +
+                       theme(legend.text = element_text(size = 14))+theme(legend.position = "bottom"),"horizontal")
+
+grid6G <- grid.arrange(arrangeGrob(fig6G_plots[[1]],
+                                   fig6G_plots[[2]],
+                                   fig6G_plots[[3]],
+                                   fig6G_plots[[4]],
+                                   ncol = 4),legendPt,ncol = 1 , heights = c(20,1))
+
+```
+
+```{r}
+plot(genePseudotime(gene = "Junb",monocle1,monocle2))
+grid.arrange(plot_genes_in_pseudotime(monocle1[selectedGenes],vertical_jitter = 0.01,ncol = 4),
+plot_genes_in_pseudotime(monocle2[selectedGenes],vertical_jitter = 0.01,ncol = 4))
+```
 
