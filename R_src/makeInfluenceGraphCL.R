@@ -121,8 +121,15 @@ if (!opt$selfLoop) {
 }
 
 
+if (!is.null(opt$recoveredTimeThreshold)) {
+  filename <- paste0(opt$outdir,"/infGraphRegulonTable",opt$recoveredTimeThreshold,".tsv",sep = "")
+} else {
+  filename <- paste0(opt$outdir,"/infGraphRegulonTable.tsv",sep = "")
+}
+
+
 ## Write only the regulonTable
-write.table(infGraphTable,paste0(opt$outdir,"/infGraphRegulonTable.tsv",sep = ""),sep = "\t",row.names = F)
+write.table(infGraphTable,filename,sep = "\t",row.names = F)
 
 ## Plot the regulon net
 regulonNet <- graph_from_data_frame(infGraphTable,directed = T)
@@ -156,6 +163,7 @@ dev.off()
 
 if (!is.null(opt$addBiblioNet)) {
   print("Adding biblio net...")
+    
   nets <- strsplit(opt$addBiblioNet,split = "\\+")
   infGraphTable$source <- "ScenicMulti"
   for (n in nets[[1]]) {
@@ -180,6 +188,9 @@ if (!is.null(opt$addBiblioNet)) {
     #tableNet$interaction <- paste(tableNet$tf,tableNet$target,tableNet$mor,sep = "_") 
     colnames(infGraphTable)[colnames(infGraphTable) == "regulon"] <- "tf"
     colnames(infGraphTable)[colnames(infGraphTable) == "gene"] <- "target"
+    ## Keep only edges between input tf selections
+    tableNet <- tableNet[which(tableNet$tf %in% selectedTF & tableNet$target %in% c(as.vector(selectedTF),cellCycleGenes)),]
+    
     infGraphTable <- rbind(infGraphTable[,c("tf","target","mor","source")],tableNet)
   }
   
@@ -197,8 +208,13 @@ plot(regulonNet,autocurve = T)
 dev.off()
 
 
+if (!is.null(opt$recoveredTimeThreshold)) {
+  filename <- paste0(opt$outdir,"/infGraphTable",opt$recoveredTimeThreshold,".tsv",sep = "")
+} else {
+  filename <- paste0(opt$outdir,"/infGraphTable.tsv",sep = "")
+}
 
 ## Write the final table
-write.table(infGraphTable,paste0(opt$outdir,"/infGraphTable.tsv",sep = ""),sep = "\t",row.names = F)
+write.table(infGraphTable,filename,sep = "\t",row.names = F)
 
 
