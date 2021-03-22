@@ -140,7 +140,7 @@ def main(argv):
     # In[8]:
 
 
-    subprocess.call(['rm',filename+".asp"])
+    #subprocess.call(['rm',filename+".asp"])
 
 
     # In[9]:
@@ -174,7 +174,7 @@ def main(argv):
     a_file.writelines(list_of_lines)
     a_file.close()
     solving = funForBonesis.shell(['sh',filename+".asp"])
-    subprocess.call(['rm',filename+".asp"])
+    #subprocess.call(['rm',filename+".asp"])
 
 
     # In[12]:
