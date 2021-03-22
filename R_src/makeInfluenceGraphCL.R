@@ -24,12 +24,17 @@ spec = matrix(c(
   "tfNode",         't',1, "character", "path to TF.txt to take",
   "regulonTable",    'r', 1, "character", "Path to regulons table",
   "addCellCycle",   'c', 0, "logical", "Add cell cycle genes gathered into CycDCD46, INK4, CIPKIP complexes (default FALSE)",
-  "addBiblioNet",    'b', 1, "character", "Path to biblio net table to add to the influence graph (separated by +)",
+  "addBiblioNet",    'b', 1, "character", "Path to biblio net table to add to the influence graph (separated by +) DEPRECATED",
+  "interactionBiblio",    'j', 1, "character", "Path to biblio interaction table file",
+  "addCistromeBetaScore", "a",1, "character", "Path to Cistrome BETA reanalysis",
   "importanceThreshold", 'i', 1, "numeric", "discard any interaction (except self loops with no score) below this importance score (default 0)",
   "recoveredTimeThreshold",  "v", 1, "numeric", "discard any interaction recovered in less than this number of runs (default no filter)",
-  "selfLoop",    "s", 0, "logical", "Keep selfLoop from regulon table (default TRUE)"
+  "selfLoop",    "s", 0, "logical", "Keep selfLoop from regulon table (default TRUE)",
+  "allSet",     'd', 0, "logical", "Keep only inteaction recovered in all sets",
+  "peakCistrome", "p", 0, "logical", "discard Scenic interaction if no peaks found in cistrome,only for avalible TF in cistrome subset"
 ), byrow=TRUE, ncol=5);
 
+print("Adding interaction from litterature...")
 
 
 opt = getopt(spec)
@@ -71,6 +76,20 @@ if(is.null(opt$selfLoop)) {
 } else {
   opt$selfLoop <- F
 }
+
+if(is.null(opt$allSets)) {
+  opt$allSets <- F
+} else {
+  opt$allSets <- T
+}
+
+if(is.null(opt$peakCistrome)) {
+  opt$peakCistrome <- F
+} else {
+  opt$peakCistrome <- T
+}
+
+
 
 
 # Printing option before running
@@ -119,6 +138,11 @@ if (!is.null(opt$recoveredTimeThreshold)) {
 if (!opt$selfLoop) {
   infGraphTable <- infGraphTable[which(infGraphTable$tf != infGraphTable$gene),]
 }
+print(dim(infGraphTable))
+
+if (opt$allSets) {
+  infGraphTable <- infGraphTable[!is.na(infGraphTable$recoveredTimes_young)&!is.na(infGraphTable$recoveredTimes_old),]
+}
 
 
 if (!is.null(opt$recoveredTimeThreshold)) {
@@ -129,7 +153,7 @@ if (!is.null(opt$recoveredTimeThreshold)) {
 
 
 ## Write only the regulonTable
-write.table(infGraphTable,filename,sep = "\t",row.names = F)
+regulonTableFinal <- infGraphTable 
 
 ## Plot the regulon net
 regulonNet <- graph_from_data_frame(infGraphTable,directed = T)
@@ -161,40 +185,134 @@ png(paste0(opt$outdir,"/regulonGraphO.png"),width = 800,height = 800)
 plot(regulonNetO)
 dev.off()
 
-if (!is.null(opt$addBiblioNet)) {
-  print("Adding biblio net...")
+colnames(infGraphTable)[colnames(infGraphTable) == "regulon"] <- "tf"
+colnames(infGraphTable)[colnames(infGraphTable) == "gene"] <- "target"
+infGraphTable <- infGraphTable[,c("tf","target","mor")]
+infGraphTable$Scenic <- T
+infGraphTable$ref <- NA
+infGraphTable$proof_level <- NA
+infGraphTable$cell_type <- NA
+infGraphTable$Trusted <- 0
+
+
+infGraphTable <- infGraphTable[!duplicated(infGraphTable),]
+rownames(infGraphTable) <- paste(infGraphTable$tf,infGraphTable$target,infGraphTable$mor,sep = "_")
+print('OK')
+
+
+
+# if (!is.null(opt$addBiblioNet)) {
+#   print("Adding biblio net...")
+#     
+#   nets <- strsplit(opt$addBiblioNet,split = "\\+")
+#   for (n in nets[[1]]) {
+#     tableNet <- read.table(n)
+#     print(head(n))
+#     colnames(tableNet) <- c("tf","mor","target")
+#     levels(tableNet$mor) <- c(levels(tableNet$mor),-1,1)
+#     tableNet$mor[which(tableNet$mor == "-|")] <- -1
+#     tableNet$mor[which(tableNet$mor == "->")] <- 1
+#     
+#     for (r in rownames(tableNet)) {
+#       if(tableNet[r,"mor"] == "-?") {
+#         #print(bonzanni[r,])
+#         neg <- tableNet[r,] 
+#         neg$mor <- -1
+#         tableNet[r,"mor"] <- 1
+#         tableNet <- rbind(tableNet,neg)
+#       }
+#     }
+#     
+#     tableNet$ref <- strsplit(n,split="/")[[1]][length(strsplit(n,split="/")[[1]])]
+#     infGraphTable$Scenic <- F
+#     infGraphTable$ref <- NA
+#     infGraphTable$proof_level <- NA
+# 
+#     ## Keep only edges between input tf selections
+#     tableNet <- tableNet[which(tableNet$tf %in% selectedTF & tableNet$target %in% c(as.vector(selectedTF),cellCycleGenes)),]
+#     
+#     infGraphTable <- rbind(infGraphTable[,c("tf","target","mor","Scenic","ref","proof_level")],tableNet)
+#   }
+#   
+# }
+
+
+if (!is.null(opt$interactionBiblio)) {
+  print("Adding interaction from litterature...")
+  
+  
+  tableNet <- read.table(opt$interactionBiblio,sep = '\t', header = T)
+  levels(tableNet$mor) <- c(levels(tableNet$mor),-1,1)
+  tableNet$mor[which(tableNet$mor == "-|")] <- -1
+  tableNet$mor[which(tableNet$mor == "->")] <- 1
+  rownames(tableNet) <- paste(tableNet$tf,tableNet$target,tableNet$mor,sep = "_")
+  # update common interaction
+  print(rownames(tableNet))
+  
+  comInt <- rownames(tableNet)[rownames(tableNet) %in% rownames(infGraphTable)]
+  print(comInt)
+  infGraphTable <- data.frame(infGraphTable,stringsAsFactors = F)
+  
+  for (i in comInt) {
+    print(tableNet[i,"proof_level"])
+    infGraphTable[i,"proof_level"] <- as.character(tableNet[i,"proof_level"])
+    infGraphTable[i,"ref"] <- as.character(tableNet[i,"ref"])
+    infGraphTable[i,"Trusted"] <- as.character(tableNet[i,"Trusted"])
     
-  nets <- strsplit(opt$addBiblioNet,split = "\\+")
-  infGraphTable$source <- "ScenicMulti"
-  for (n in nets[[1]]) {
-    tableNet <- read.table(n)
-    print(head(n))
-    colnames(tableNet) <- c("tf","mor","target")
-    levels(tableNet$mor) <- c(levels(tableNet$mor),-1,1)
-    tableNet$mor[which(tableNet$mor == "-|")] <- -1
-    tableNet$mor[which(tableNet$mor == "->")] <- 1
-    
-    for (r in rownames(tableNet)) {
-      if(tableNet[r,"mor"] == "-?") {
-        #print(bonzanni[r,])
-        neg <- tableNet[r,] 
-        neg$mor <- -1
-        tableNet[r,"mor"] <- 1
-        tableNet <- rbind(tableNet,neg)
-      }
-    }
-    
-    tableNet$source <- strsplit(n,split="/")[[1]][length(strsplit(n,split="/")[[1]])]
-    #tableNet$interaction <- paste(tableNet$tf,tableNet$target,tableNet$mor,sep = "_") 
-    colnames(infGraphTable)[colnames(infGraphTable) == "regulon"] <- "tf"
-    colnames(infGraphTable)[colnames(infGraphTable) == "gene"] <- "target"
-    ## Keep only edges between input tf selections
-    tableNet <- tableNet[which(tableNet$tf %in% selectedTF & tableNet$target %in% c(as.vector(selectedTF),cellCycleGenes)),]
-    
-    infGraphTable <- rbind(infGraphTable[,c("tf","target","mor","source")],tableNet)
   }
+  # add other interaction
+  tableNet$Scenic <- F
+  addInt <- rownames(tableNet)[!rownames(tableNet)%in%rownames(infGraphTable)]
+  print(addInt)
+  infGraphTable <- rbind(infGraphTable[,c("tf","mor","target","ref","proof_level","cell_type","Trusted","Scenic")],tableNet[addInt,])
+  
+
+  ## Keep only edges between input tf selections
+  tableNet <- tableNet[which(tableNet$tf %in% selectedTF & tableNet$target %in% c(as.vector(selectedTF),cellCycleGenes)),]
   
 }
+
+## Add cistrome info
+cistromeReg <-  read.table(opt$addCistromeBetaScore)
+
+## For scenic regulon interactions
+regulonTableFinal$cistromeAdjScore <- NA
+regulonTableFinal$cistromeAdjScore[regulonTableFinal$regulon %in% unique(cistromeReg$regulon)] <- 0 # 0 for all Tf available in Cistrome by default then add available scores
+regulonTableFinal$interaction0 <- str_split_fixed(regulonTableFinal$interaction,"_[-1]",n=2)[,1]
+rownames(cistromeReg) <- cistromeReg$interaction
+regulonTableFinal$cistromeAdjScore[regulonTableFinal$interaction0 %in% cistromeReg$interaction] <- cistromeReg[regulonTableFinal[regulonTableFinal$interaction0 %in% cistromeReg$interaction,"interaction0"],'adjustedScore']
+
+if (opt$peakCistrome) {
+  regulonTableFinal <- regulonTableFinal[is.na(regulonTableFinal$cistromeAdjScore) | regulonTableFinal$cistromeAdjScore != 0,]
+}
+
+print(dim(regulonTableFinal))
+
+## For all interaction
+infGraphTable$cistromeAdjScore <- NA
+infGraphTable$cistromeAdjScore[infGraphTable$tf %in% cistromeReg$regulon] <- 0 # 0 for all Tf available in Cistrome by default
+infGraphTable$interaction0 <- paste0(infGraphTable$tf,"_",infGraphTable$target)
+rownames(cistromeReg) <- cistromeReg$interaction
+infGraphTable$cistromeAdjScore[infGraphTable$interaction0 %in% cistromeReg$interaction] <- cistromeReg[infGraphTable[infGraphTable$interaction0 %in% cistromeReg$interaction,"interaction0"],'adjustedScore']
+for (t in infGraphTable$tf[infGraphTable$target =="CDK46CycD"]) {
+  print(t)
+  infGraphTable[infGraphTable$target =="CDK46CycD" & infGraphTable$tf == t,"cistromeAdjScore"] <- sum(regulonTableFinal[infGraphTable$target =="CDK46CycD" & infGraphTable$tf == t,"cistromeAdjScore"])
+}
+
+for (t in infGraphTable$tf[infGraphTable$target =="CIPKIP"]) {
+  print(t)
+  infGraphTable[infGraphTable$target =="CIPKIP" & infGraphTable$tf == t,"cistromeAdjScore"] <- sum(regulonTableFinal[infGraphTable$target =="CIPKIP" & infGraphTable$tf == t,"cistromeAdjScore"])
+}
+
+
+if (opt$peakCistrome) {
+  infGraphTable <- infGraphTable[(is.na(infGraphTable$cistromeAdjScore) | !is.na(infGraphTable$ref)) | infGraphTable$cistromeAdjScore != 0,]
+}
+
+print(dim(infGraphTable))
+
+
+
 
 
 ## Plot the final net
@@ -209,12 +327,14 @@ dev.off()
 
 
 if (!is.null(opt$recoveredTimeThreshold)) {
-  filename <- paste0(opt$outdir,"/infGraphTable",opt$recoveredTimeThreshold,".tsv",sep = "")
+  filename <- paste0(opt$outdir,"/infGraphTable",opt$recoveredTimeThreshold,sep = "")
 } else {
-  filename <- paste0(opt$outdir,"/infGraphTable.tsv",sep = "")
+  filename <- paste0(opt$outdir,"/infGraphTable",sep = "")
 }
 
-## Write the final table
-write.table(infGraphTable,filename,sep = "\t",row.names = F)
+## Write the final tables
+write.table(regulonTableFinal,paste0(filename,"_Regulon.tsv"),sep = "\t",row.names = F)
+
+write.table(infGraphTable,paste0(filename,".tsv"),sep = "\t",row.names = F)
 
 
