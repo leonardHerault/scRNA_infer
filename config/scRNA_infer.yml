@@ -3,23 +3,28 @@
     
   author: "Leonard Herault"
   
-  seurat_monocle_env: "/shared/projects/scRNA_HSPC_Aging/scRNA_infer/config/report_env.yml"
+  seurat_monocle_env: "config/report_env.yml"
 
-  pyscenic_env: "/shared/projects/scRNA_HSPC_Aging/scRNA_infer/config/pyscenic0.10_env.yml"
+  pyscenic_env: "config/pyscenic0.10_env.yml"
 
-  dca_env: "/shared/projects/scRNA_HSPC_Aging/scRNA_infer/config/dca_env.yml"
+  #dca_env: "config/dca_env.yml"
   
-  progeny_env: "/shared/projects/scRNA_HSPC_Aging/scRNA_infer/config/progeny_env.yml"
+  #progeny_env: "config/progeny_env.yml"
 
-  dorothea_env: "/shared/projects/scRNA_HSPC_Aging/scRNA_infer/config/dorothea_env.yml"
+  #dorothea_env: "config/dorothea_env.yml"
   
-  bonesis_env: "/shared/projects/scRNA_HSPC_Aging/scRNA_infer/config/bonesis_env.yml"
+  bonesis_env: "config/bonesis_env.yml"
+  
+  reportInf_env: "config/reportInference.yml"
+  
+  beta_env: "config/beta_env.yml"
+  stream_env: "config/stream_env.yml"
+
 
 
   dir:
-    base: "/shared/projects/scRNA_HSPC_Aging/scRNA_infer/"
-    script_dir: "/shared/projects/scRNA_HSPC_Aging/scRNA_infer/R_src"
-    inputData: "/shared/projects/scRNA_HSPC_Aging/herault_et_al/scHSC_herault/"
+    base: "./"
+    inputData: "../herault_et_al/scHSC_herault/" #Modify to dir path with results form workflow of herault et al, 2021
 
   seurat3:
     dim: "15"
@@ -29,6 +34,7 @@
 
   databases:
     trrust: "https://www.grnpedia.org/trrust/data/trrust_rawdata.mouse.tsv"
+    cistrome: "http://cistrome.org/db/batchdata/R9MXVUTB72SQ8FJLMWXU.tar.gz"
   
   scenic:
     sums: "https://resources.aertslab.org/cistarget/databases/sha256sum.txt"
@@ -37,10 +43,17 @@
   
   regulonAnalysis:
     scoreDiff: "0.002"
-    recovTimesThresholdforInfGraph: "50"
+    recovTimesThresholdforInfGraph: "45"
   
   bonesis:
     gitUrl: "https://github.com/bioasp/bonesis.git"
+  
+  cistrome:
+    info: "input/mouse_factor_full_QC.txt"
+    celltypes: "input/selectedCistromeCellType.txt"
+    tissue: "Bone Marrow"
+    
+  
     
 
-  dca: "--type zinb-conddisp --l1enc 1.7124745250568364e-07 --dropoutrate  0.014733010254961758 --ridge 1.8157607089533045e-07 --activation linear --hiddensize 16,16 --inputdropout 0.2092760476136833 --learningrate 0.0012675894226086178"
+  #dca: "--type zinb-conddisp --l1enc 1.7124745250568364e-07 --dropoutrate  0.014733010254961758 --ridge 1.8157607089533045e-07 --activation linear --hiddensize 16,16 --inputdropout 0.2092760476136833 --learningrate 0.0012675894226086178"

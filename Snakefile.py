@@ -8,34 +8,139 @@ inputDataDir = config["dir"]["inputData"]
 seurat_monocle_env = config["seurat_monocle_env"]
 pyscenic_env = config["pyscenic_env"]
 bonesis_env = config["bonesis_env"]
+beta_env = config["beta_env"]
+stream_env = config["stream_env"]
+report_env = config["reportInf_env"]
 
-dca_env = config["dca_env"]
-progeny_env = config["progeny_env"]
-dorothea_env = config["dorothea_env"]
+
+
+#dca_env = config["dca_env"]
+#progeny_env = config["progeny_env"]
+#dorothea_env = config["dorothea_env"]
 ages = ["young","old"]
 
 scenicRuns = list(range(50))
 
 
+########################### Preprocessing of cistrome database############################
+
+infofile =  config["cistrome"]['info']
+f = open(infofile,"r",encoding="utf-8")
+info = f.read()
+f.close()
+celltypes =  config["cistrome"]['celltypes']
+tissue = config["cistrome"]['tissue']
+c = open(celltypes,"r",encoding="utf-8")
+ct = c.read()
+c.close()
+
+ct = ct.split("\n")
+  
+exp = info.split("\n")
+exp = [e.split("\t") for e in exp[:-1]]
+  
+expFiltered = [e for e in exp if e[5] in ct]
+peakFiles  = []
+targetFiles = []
+for e in expFiltered:
+  peakFiles.append(e[0] + "_sort_peaks.narrowPeak.bed")
+  targetFiles.append(e[2]+"_"+e[3])
+  
+expToFile = dict()
+for e in expFiltered:
+   expToFile[e[2] + "_" + e[3]] = e[0] 
+
+expFilteredLines = ["\t".join(exp[0])+"\n"]
+for n in expFiltered:
+  expFilteredLines.append("\t".join(n)+"\n")
+
+outexpFiltered = open("input/mouse_factor_full_QC_filtered.txt","w")
+outexpFiltered.writelines(expFilteredLines) 
+outexpFiltered.close()
+   
+## Same with tissue selection
+expFilteredTissue = [e for e in exp if e[6] == tissue]
+peakFilesTissue  = []
+targetFilesTissue = []
+for e in expFilteredTissue:
+  peakFilesTissue.append(e[0] + "_sort_peaks.narrowPeak.bed")
+  targetFilesTissue.append(e[2]+"_"+e[3])
+  
+expToFileTissue = dict()
+for e in expFilteredTissue:
+   expToFileTissue[e[2] + "_" + e[3]] = e[0] 
+
+
+print(peakFilesTissue[1:5])
+print(targetFilesTissue[1:5])
+#expToFile.keys[1:5]
+
+expFilteredLinesTissue = ["\t".join(exp[0])+"\n"]
+for n in expFilteredTissue:
+  expFilteredLinesTissue.append("\t".join(n)+"\n")
+
+outexpFilteredTissue = open("input/mouse_factor_full_QC_filtered_tissue.txt","w")
+outexpFilteredTissue.writelines(expFilteredLinesTissue) 
+outexpFilteredTissue.close()
+
+
+###########################################################################
+
 rule all:
-    input:"reportProjet2/report_final.html",
-          "output/ScenicRNA_multipleRuns/cis_target_maskDropouts/aggregatedRegulons.json",
-          "output/ScenicRNA_multipleRuns/AUCell_maskDropouts/regulons_enrichment.csv",
-          "output/regulonAnalysis/mainRegulonTable.tsv",
-          "output/publicData/trrust.tsv",
-          "output/regulonAnalysis/clusterMarkerRegulonTable.tsv",
-          "output/regulonAnalysis/infGraphTable.tsv",
-          "output/regulonAnalysis/infGraphTable50.tsv",
-          "output/Inference/smallNet/solutions.p"
+    input:#"reportProjet2/report_final.html",
+          #"output/stream/stream_result.pkl",
+          #"output/ScenicRNA_multipleRuns/cis_target_maskDropouts/aggregatedRegulons.json",
+          #"output/ScenicRNA_multipleRuns/AUCell_maskDropouts/regulons_enrichment.csv",
+          #"output/regulonAnalysis/mainRegulonTable.tsv",
+          #"output/publicData/trrust.tsv",
+          #"output/Inference/Net/solutions.p",
+          #"output/Cistrome_BM/cistromeReg.tsv",
+          #"report/solutionFinal.zginml",
+          "report/figures_part2.html",
+          #"output/Inference/bonesis/solution_space_first_exploration.html"
+          
+
           #"output/Inference/bonesis/solutions.p"
     
-rule getDataMatrixFromPreviousWork:
-    input: inputDataDir+"/report/seurat_report.rds",
-    output: "input/dataMatrix.csv"
-    conda: seurat_monocle_env
-    params: slot = "data"
-    threads: 1
-    shell: "Rscript R_src/getDataMatrixCL.R -i {input} -s {params.slot} -o input/"
+# rule getDataMatrixFromPreviousWork:
+#     input: inputDataDir+"/report/seurat_report.rds",
+#     output: "input/dataMatrix.csv"
+#     conda: seurat_monocle_env
+#     params: slot = "data"
+#     threads: 1
+#     shell: "Rscript R_src/getDataMatrixCL.R -i {input} -s {params.slot} -o input/"
+rule prepare_data_for_stream_all:
+  input: seurat = inputDataDir+"report/seurat_report.rds",
+         monocle = inputDataDir+"report/monocle_report.rds",
+  output: data = "output/stream/all_scaleDataForStream.tsv.gz",
+          monocleStates = "output/stream/all_monocleStates.tsv",
+          seuratClusters = "output/stream/all_seuratClusters.tsv",
+          ages = "output/stream/all_ages.tsv",
+          colorAges = "output/stream/all_colorAges.tsv",
+          colorCluster = "output/stream/all_colorClusters.tsv",
+          colorStates = "output/stream/all_colorMonocleStates.tsv"
+  threads: 12
+  conda: seurat_monocle_env
+  shell: "Rscript R_src/prepareStreamCL.R -i {input.seurat} -m {input.monocle} \
+  -o output/stream/ -p all -r pL2;cd output/stream/;gzip -f all_scaleDataForStream.tsv"
+
+rule stream_all:
+  input: data = "output/stream/all_scaleDataForStream.tsv.gz",
+         monocleStates = "output/stream/all_monocleStates.tsv",
+         seuratClusters = "output/stream/all_seuratClusters.tsv",
+         ages = "output/stream/all_ages.tsv",
+         colorAges = "output/stream/all_colorAges.tsv",
+         colorCluster = "output/stream/all_colorClusters.tsv",
+         colorStates = "output/stream/all_colorMonocleStates.tsv"
+  output: "output/stream/stream_result.pkl"
+  params: annoFiles = "output/stream/all_monocleStates.tsv,output/stream/all_seuratClusters.tsv,output/stream/all_ages.tsv",
+          colorNames = "output/stream/all_colorMonocleStates.tsv,output/stream/all_colorClusters.tsv,output/stream/all_colorAges.tsv",
+          annoNames = "Monocle_state,Seurat_cluster,Age"
+  threads: 12
+  conda: stream_env
+  shell: "python py_src/streamCL.py -m {input.data} \
+  -p {params.annoFiles} -c {params.colorNames} -n {params.annoNames} \
+  -j 12 -o output/stream/ -r S1"
 
 rule prepare_tf_list:
      input: inputDataDir+"/publicData/database/motifs-v9-nr.mgi-m0.001-o0.0.tbl"
@@ -148,75 +253,258 @@ rule creating_regulonTable:
     shell:
         "Rscript R_src/makeRegulonTableCL.R -o output/regulonAnalysis/ -t {params.tf_database} -r {input.main} -s {params.supp} -n {params.condName}"
 
-rule analyseRegulonScore:
-    input: seurat =  inputDataDir+"/report/seurat_report.rds",
-           tfList = "input/selectedTF.txt",
-           regulonScore =  "output/ScenicRNA_multipleRuns/AUCell_maskDropouts/regulons_enrichment.csv"
-    output: "output/regulonAnalysis/clusterMarkerRegulonTable.tsv"
-    params: scoreDiff = config["regulonAnalysis"]["scoreDiff"]
-    conda: seurat_monocle_env
-    shell:
-      "Rscript R_src/regulonMarkerCL.R -i {input.seurat} -t {input.tfList} \
-      -r {input.regulonScore} -o output/regulonAnalysis/ -c -a AGE"
+# rule analyseRegulonScore:
+#     input: seurat =  inputDataDir+"/report/seurat_report.rds",
+#            tfList = "input/selectedTF.txt",
+#            regulonScore =  "output/ScenicRNA_multipleRuns/AUCell_maskDropouts/regulons_enrichment.csv"
+#     output: "output/regulonAnalysis/clusterMarkerRegulonTable.tsv"
+#     params: scoreDiff = config["regulonAnalysis"]["scoreDiff"]
+#     conda: seurat_monocle_env
+#     shell:
+#       "Rscript R_src/regulonMarkerCL.R -i {input.seurat} -t {input.tfList} \
+#       -r {input.regulonScore} -o output/regulonAnalysis/ -c -a AGE"
 
-rule makeInfluenceGraphAll:
+# rule makeInfluenceGraphAll:
+#     input: tfList = "input/selectedTF.txt",
+#            regulonTable = "output/regulonAnalysis/mainRegulonTable.tsv"
+#     output: "output/regulonAnalysis/infGraphTable.tsv"
+#     params: recovTimesThreshold = config["regulonAnalysis"]["recovTimesThresholdforInfGraph"],
+#             biblioNet = "input/KrumsiekAdapted.reggraph+publicData/Bonzanni_2013.reggraph"
+#     conda: seurat_monocle_env
+#     shell: "Rscript R_src/makeInfluenceGraphCL.R -t {input.tfList} -r {input.regulonTable} \
+#     -o output/regulonAnalysis/ -c -b {params.biblioNet}"
+# 
+# rule makeInfluenceGraphTop:
+#     input: tfList = "input/selectedTF.txt",
+#            regulonTable = "output/regulonAnalysis/mainRegulonTable.tsv"
+#     output: "output/regulonAnalysis/infGraphTable50.tsv"
+#     params: recovTimesThreshold = config["regulonAnalysis"]["recovTimesThresholdforInfGraph"],
+#             biblioNet = "input/KrumsiekAdapted.reggraph"
+#     conda: seurat_monocle_env
+#     shell: "Rscript R_src/makeInfluenceGraphCL.R -t {input.tfList} -r {input.regulonTable} \
+#     -o output/regulonAnalysis/ -c -b {params.biblioNet} -v {params.recovTimesThreshold}"
+
+
+rule makeInfluenceGraph:
     input: tfList = "input/selectedTF.txt",
-           regulonTable = "output/regulonAnalysis/mainRegulonTable.tsv"
-    output: "output/regulonAnalysis/infGraphTable.tsv"
+           regulonTable = "output/regulonAnalysis/mainRegulonTable.tsv",
+           cistromeBeta = "output/Cistrome_BM/cistromeReg.tsv",
+           interactionBiblio = "input/interactionsReferences.txt"
+    output: "output/Inference/influenceGraph/infGraphTable45.tsv"
     params: recovTimesThreshold = config["regulonAnalysis"]["recovTimesThresholdforInfGraph"],
-            biblioNet = "input/KrumsiekAdapted.reggraph+publicData/Bonzanni_2013.reggraph"
     conda: seurat_monocle_env
     shell: "Rscript R_src/makeInfluenceGraphCL.R -t {input.tfList} -r {input.regulonTable} \
-    -o output/regulonAnalysis/ -c -b {params.biblioNet}"
-
-rule makeInfluenceGraphTop:
-    input: tfList = "input/selectedTF.txt",
-           regulonTable = "output/regulonAnalysis/mainRegulonTable.tsv"
-    output: "output/regulonAnalysis/infGraphTable50.tsv"
-    params: recovTimesThreshold = config["regulonAnalysis"]["recovTimesThresholdforInfGraph"],
-            biblioNet = "input/KrumsiekAdapted.reggraph"
-    conda: seurat_monocle_env
-    shell: "Rscript R_src/makeInfluenceGraphCL.R -t {input.tfList} -r {input.regulonTable} \
-    -o output/regulonAnalysis/ -c -b {params.biblioNet} -v {params.recovTimesThreshold}"
+    -o output/Inference/influenceGraph/ -c -j {input.interactionBiblio} -a {input.cistromeBeta} -v {params.recovTimesThreshold}"
+    
+    
+###################################################################################################################################
+#### Report first part
+rule get_report_influence_graph_disctretization:
+    input:"report/figures_part1.Rmd",
+          "output/regulonAnalysis/mainRegulonTable.tsv",
+          "output/publicData/mm_mgi_tfs.txt",
+          "input/selectedTF.txt",
+          "output/ScenicRNA_multipleRuns/AUCell_maskDropouts/regulons_enrichment.csv",
+          "output/ScenicRNA_multipleRuns/cis_target_maskDropouts/aggregatedRegulons.json",
+          "output/ScenicRNA_multipleRuns_young/cis_target_maskDropouts/aggregatedRegulons.json",
+          "output/ScenicRNA_multipleRuns_old/cis_target_maskDropouts/aggregatedRegulons.json",
+          "output/regulonAnalysis/youngRegulonTable.tsv",
+          "output/regulonAnalysis/oldRegulonTable.tsv",
+          "output/Cistrome_BM/cistromeReg.tsv",
+          "output/Inference/influenceGraph/infGraphTable45.tsv",
+          inputDataDir+"/report/seurat_report.rds",
+          inputDataDir+"/report/monocle_report.rds"
+    output:"report/seuratObs.rds",
+           "output/Inference/obsDataDis.csv",
+           "report/tables/regulatorNet45.tsv",
+           "report/tables/nodeTable45.tsv",
+           "report/tables/regulonPopulationMarker.tsv",
+           "report/tables/interactionTable.tsv",
+           "report/figures_part1.html"
+    threads: 12
+    conda: report_env  
+    shell: "echo $CONDA_DEFAULT_ENV;Rscript -e 'rmarkdown::render(\"{input[0]}\")'"
+###################################################################################################################################
+   
+# rule makeInfluenceGraphTrusted:
+#     input: tfList = "input/selectedTF_large.txt",
+#            regulonTable = "output/regulonAnalysis/mainRegulonTable.tsv",
+#            cistromeBeta = "output/Cistrome_BM/cistromeReg.tsv",
+#            interactionBiblio = "input/KrumsiekAdapted.txt"
+#     output: "output/Inference/infGraphLargeTrusted/infGraphTable45.tsv"
+#     params: recovTimesThreshold = config["regulonAnalysis"]["recovTimesThresholdforInfGraph"],
+#     conda: seurat_monocle_env
+#     shell: "Rscript R_src/makeInfluenceGraphCL.R -t {input.tfList} -r {input.regulonTable} \
+#     -o output/Inference/infGraphLargeTrusted/ -c -j {input.interactionBiblio} -a {input.cistromeBeta} -v 45"
 
 
 rule installBonesis:
-    output: "output/Inference/bonesis/install_done"
+    output: "config/bonesis/install_done"
     params: gitUrl=config["bonesis"]["gitUrl"]
     conda: bonesis_env
     shell: 
-      "cd output/Inference/;git clone {params.gitUrl};cd bonesis;pip install --user -e .;touch install_done"
+      "cd config/;git clone {params.gitUrl};cd bonesis;pip install --user -e .;touch install_done"
 
-rule bonesis:
-    input: graph = "output/regulonAnalysis/infGraphTable50.tsv",
-           obsData = "input/obsData.csv",
-           install = "output/Inference/bonesis/install_done"
-    output: "output/Inference/smallNet/solutions.p"
+# rule bonesis:
+#     input: graph = "output/regulonAnalysis/infGraphTable50.tsv",
+#            obsData = "input/obsData.csv",
+#            install = "output/Inference/bonesis/install_done"
+#     output: "output/Inference/smallNet/solutions.p"
+#     conda: bonesis_env
+#     threads: 20
+#     shell: 
+#       "python py_src/inferSmallestMpbnExact.py -o output/Inference/smallNet -c {threads} -i {input.graph} -d {input.obsData}" 
+# 
+# rule bonesis_large:
+#     input: graph =  "output/Inference/infGraphLarge/infGraphTable45.tsv",
+#            obsData = "input/obsDataLarge.csv",
+#            install = "output/Inference/bonesis/install_done"
+#     output: "output/Inference/Net/solutions.p"
+#     conda: bonesis_env
+#     threads: 20
+#     shell: 
+#       "python py_src/inferSmallestMpbnExact.py -o output/Inference/Net -c {threads} -i {input.graph} -d {input.obsData}"
+# 
+# rule bonesis_large_test:
+#     input: graph =  "output/Inference/infGraphLarge/infGraphTable45.tsv",
+#            obsData = "report/obsDataPhenoMut.csv",
+#            install = "output/Inference/bonesis/install_done",
+#            constraints = "py_src/constraintsTest.py"
+#     output: "output/Inference/NetTest/solutions.p"
+#     conda: bonesis_env
+#     threads: 20
+#     shell:
+#       "cp {input.constraints} py_src/constraints.py; \
+#       python py_src/inferSmallestMpbnExact.py -o output/Inference/NetTest -c {threads} -i {input.graph} -d {input.obsData}" 
+
+
+rule bonesis_explore:
+    input: graph =  "output/Inference/influenceGraph/infGraphTable45.tsv",
+           obsData = "output/Inference/obsDataDis.csv",
+           install = "config/bonesis/install_done"
+    output: "output/Inference/bonesis/solution_space_first_exploration.html"
     conda: bonesis_env
-    threads: 20
-    shell: 
-      "python py_src/inferSmallestMpbnExact.py -o output/Inference/smallNet -c {threads} -i {input.graph} -d {input.obsData}" 
+    threads: 24
+    shell:
+      "jupyter nbconvert --ExecutePreprocessor.timeout=1000000 --to HTML --execute output/Inference/bonesis/solution_space_first_exploration.ipynb"
 
+
+# rule bonesis_explore:
+#     input: graph =  "report/infGraphTable45_test0.tsv",
+#            obsData = "report/obsDataDis0.csv",
+#            install = "config/bonesis/install_done"
+#     output: "report/solution_space_first_exploration_test0.html"
+#     conda: bonesis_env
+#     threads: 24
+#     shell:
+#       "jupyter nbconvert --ExecutePreprocessor.timeout=1000000 --to HTML --execute report/solution_space_first_exploration_test0.ipynb"
+
+# rule bonesis_optimize:
+#     input: graph =  "report/infGraphTable45_test0.tsv",
+#            obsData = "report/obsDataDis0.csv",
+#            install = "config/bonesis/install_done"
+#     output: "report/optimization_final_sol_test0.html",
+#             "report/possible_final_solutions_test.p"
+#     conda: bonesis_env
+#     threads: 24
+#     shell:
+#       "jupyter nbconvert --ExecutePreprocessor.timeout=1000000 --to HTML --execute report/optimization_final_sol_test0.ipynb" 
+      
+rule bonesis_optimize:
+    input: graph =  "output/Inference/influenceGraph/infGraphTable45.tsv",
+           obsData = "output/Inference/obsDataDis.csv",
+           install = "config/bonesis/install_done"
+    output: "output/Inference/bonesis/regulatory_graph_optimization.html",
+            "output/Inference/bonesis/possible_final_solutions.p"
+    conda: bonesis_env
+    threads: 24
+    shell:
+      "jupyter nbconvert --ExecutePreprocessor.timeout=1000000 --to HTML --execute output/Inference/bonesis/regulatory_graph_optimization.ipynb" 
+
+rule bonesis_final_solution:
+    input: graph =  "output/Inference/influenceGraph/infGraphTable45.tsv",
+           obsData = "output/Inference/obsDataDis.csv",
+           install = "config/bonesis/install_done",
+           sol = "output/Inference/bonesis/possible_final_solutions.p"
+    output: "report/reportBonesis.html",
+            "report/tables/interactionTableFinalSol.csv",
+            "report/solutionFinal.zginml"
+    conda: bonesis_env
+    threads: 24
+    shell:
+      "jupyter nbconvert --ExecutePreprocessor.timeout=1000000 --to HTML --execute report/reportBonesis.ipynb" 
+
+###################################################################################################################################
+#### Report seconda part
+rule get_final_report:
+    input:"report/figures_part2.Rmd",
+          "output/publicData/mm_mgi_tfs.txt",
+          "input/selectedTF.txt",
+          inputDataDir+"/report/seurat_report.rds",
+          "report/tables/interactionTableFinalSol.csv",
+          "report/seuratObs.rds"
+    output:"report/tables/interactionRegulonTableFinalSol.tsv",
+           "report/figures_part2.html",
+           "report/tables/regulonPopulationAgingMarker.tsv"
+    threads: 12
+    conda: report_env  
+    shell: "Rscript -e 'rmarkdown::render(\"{input[0]}\")'"
+###################################################################################################################################
       
 rule downloadRegDatabases:
     output: trrust = "output/publicData/trrust.tsv"
-    params: trrust = config["databases"]["trrust"]
+    params: trrust = config["databases"]["trrust"],
+            cistrome = config["databases"]["cistrome"]
     shell:
-      "wget -cO - {params.trrust} > {output.trrust}"
-  
+      "wget -cO - {params.trrust} > {output.trrust}\
+       wget -cO - {params.cistrome} > {output.cistrome}"
 
-rule progeny:
-    input: normData = "input/dataMatrix.csv"
-    output: "output/progeny/rna/progeny_scores.tsv"
-    conda: progeny_env
-    threads:1
-    shell: "Rscript R_src/progenyCL.R -i {input.normData} -o output/progeny/rna"
+############################## Cistrome analysis  #########################################
+
+rule filter_bed:
+   input: "input/mouse_factor/{peakFile}_sort_peaks.narrowPeak.bed"
+   output: "output/Cistrome/peaksFiltered/{peakFile}_sort_peaks.narrowPeak_filtered.bed"
+   shell: "LC_ALL=C awk '{{ if($7 >= 5) {{ print }} }}' {input} > {output}"
+
+rule BETA_score:
+   input:  lambda wildcards: "output/Cistrome/peaksFiltered/"+expToFile[wildcards.gsm_factor]+"_sort_peaks.narrowPeak_filtered.bed"
+   output: "output/Cistrome/BETA/{gsm_factor}_targets.txt"
+   params: outdir = " output/Cistrome/BETA"
+   conda: beta_env
+   shell: "BETA minus -p {input} -g mm10 -d 10000 -o {params.outdir} -n {wildcards.gsm_factor}"
+
+rule filter_bed_bone_marrow:
+   input: "input/mouse_factor/{peakFile}_sort_peaks.narrowPeak.bed"
+   output: "output/Cistrome_BM/peaksFiltered/{peakFile}_sort_peaks.narrowPeak_filtered.bed"
+   shell: "LC_ALL=C awk '{{ if($7 >= 5) {{ print }} }}' {input} > {output}"
+
+rule BETA_score_bone_marrow:
+   input:  lambda wildcards: "output/Cistrome_BM/peaksFiltered/"+expToFileTissue[wildcards.gsm_factor]+"_sort_peaks.narrowPeak_filtered.bed"
+   output: "output/Cistrome_BM/BETA/{gsm_factor}_targets.txt"
+   params: outdir = " output/Cistrome_BM/BETA"
+   conda: beta_env
+   shell: "BETA minus -p {input} -g mm10 -d 10000 -o {params.outdir} -n {wildcards.gsm_factor}"
+
+rule BETA_score_aggregation:
+   input: expand("output/Cistrome_BM/BETA/{gsm_factor}_targets.txt",gsm_factor = expToFileTissue.keys())
+   output: "output/Cistrome_BM/cistromeReg.tsv"
+   conda: seurat_monocle_env
+   shell: "Rscript R_src/cistromeAnalysisCL.R -b output/Cistrome_BM/BETA/ -o output/Cistrome_BM/"
+
+###########################################################################################  
+
+# rule progeny:
+#     input: normData = "input/dataMatrix.csv"
+#     output: "output/progeny/rna/progeny_scores.tsv"
+#     conda: progeny_env
+#     threads:1
+#     shell: "Rscript R_src/progenyCL.R -i {input.normData} -o output/progeny/rna"
   
-rule get_reportProjet2:
-    input:"output/ScenicRNA/AUCell/regulons_enrichment.csv",
-          "output/ScenicRNA/AUCell_maskDropouts/regulons_enrichment.csv",
-          "output/progeny/rna/progeny_scores.tsv",
-          "output/ScenicRNA/tf_grn_regulons.csv",
-          "output/ScenicRNA/tf_grn_regulons_maskDropouts.csv",
-    output:"reportProjet2/report_final.html"
-    shell: "touch {output}"
+# rule get_reportProjet2:
+#     input:"output/ScenicRNA/AUCell/regulons_enrichment.csv",
+#           "output/ScenicRNA/AUCell_maskDropouts/regulons_enrichment.csv",
+#           "output/progeny/rna/progeny_scores.tsv",
+#           "output/ScenicRNA/tf_grn_regulons.csv",
+#           "output/ScenicRNA/tf_grn_regulons_maskDropouts.csv",
+#     output:"reportProjet2/report_final.html"
+#     shell: "touch {output}"
