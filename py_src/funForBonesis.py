@@ -13,7 +13,7 @@ import re
 import subprocess
 import numpy as np
 from matplotlib import pyplot as plt
-import constraints
+#import constraints
 
 def multiDiGraphToEdgeList(graph):
     edges = graph.edges(data=True)
@@ -36,26 +36,26 @@ def has_cyclic(bn):
                 return True
         return False
 
-def checkEdge(iEdges,infGraph,data):
-    edges = multiDiGraphToEdgeList(infGraph)
-    edges.pop(iEdges)
-    dom1 = bonesis.InfluenceGraph(edges, maxclause = 3,exact=False)
-    bo1 = constraints.buildConstraints(inf = dom1,data = data,exact = False)
-    view = bo1.boolean_networks(limit = 1)   
-    filename = "test"
-    view.standalone(output_filename=filename+".asp")
-    a_file = open(filename+".asp", "r")
-    list_of_lines = a_file.readlines()
-    list_of_lines[1] = 'clingo -t 24 1 --time-limit=10 --project -c bounded_nonreach=3 "${@}" - <<EOF\n'
-    a_file = open(filename+".asp", "w")
-    a_file.writelines(list_of_lines)
-    a_file.close()
-    solving = shell(['sh',filename+".asp"])
-    subprocess.call(['rm',filename+".asp"])
-    res = [x for x in  solving[0].split('\\n') if x.startswith('Models')]
-    out = res[0].find("1") != -1
-    if out:
-        return(dom1)
+#def checkEdge(iEdges,infGraph,data):
+#    edges = multiDiGraphToEdgeList(infGraph)
+#    edges.pop(iEdges)
+#    dom1 = bonesis.InfluenceGraph(edges, maxclause = 3,exact=False)
+#    bo1 = constraints.buildConstraints(inf = dom1,data = data,exact = False)
+#    view = bo1.boolean_networks(limit = 1)   
+#    filename = "test"
+#    view.standalone(output_filename=filename+".asp")
+#    a_file = open(filename+".asp", "r")
+#    list_of_lines = a_file.readlines()
+#    list_of_lines[1] = 'clingo -t 24 1 --time-limit=10 --project -c bounded_nonreach=3 "${@}" - <<EOF\n'
+#    a_file = open(filename+".asp", "w")
+#    a_file.writelines(list_of_lines)
+#    a_file.close()
+#    solving = shell(['sh',filename+".asp"])
+#    subprocess.call(['rm',filename+".asp"])
+#    res = [x for x in  solving[0].split('\\n') if x.startswith('Models')]
+#    out = res[0].find("1") != -1
+#    if out:
+#        return(dom1)
         
 def shell(command):
     try:
