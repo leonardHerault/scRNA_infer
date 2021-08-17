@@ -1,0 +1,777 @@
+---
+title: "figures"
+author: "Herault"
+date: "19/01/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## env
+```{r cars}
+suppressMessages(library(ggplot2))
+suppressMessages(library(Seurat))
+suppressMessages(library(monocle))
+#suppressMessages(library(BoolNet))
+suppressMessages(library(dplyr))
+suppressMessages(library(igraph))
+suppressMessages(library(plyr))
+suppressMessages(library(stringr))
+suppressMessages(library(grid))
+suppressMessages(library(gridExtra))
+suppressMessages(library(RColorBrewer))
+#suppressMessages(library(gProfileR))
+suppressMessages(library(gplots))
+suppressMessages(library(reshape2))
+#suppressMessages(library(ggpmisc))
+suppressMessages(library(ggthemes))
+suppressMessages(library("readxl"))
+
+
+if (!requireNamespace("ggVennDiagram", quietly = TRUE))
+  install.packages("ggVennDiagram",repos='http://cran.us.r-project.org')
+
+suppressMessages(library("ggVennDiagram"))
+
+# if (packageVersion("Seurat") != "3.2.2")
+#   remotes::install_version("Seurat", version = "3.2.2",upgrade = FALSE,repos='http://cran.us.r-project.org')
+
+source("../R_src/computeDiffFun.R")
+
+```
+
+## load results
+
+```{r pressure, echo=FALSE}
+interactionsTable0 <- read.table("../output/regulonAnalysis/mainRegulonTable.tsv") 
+tfTested <- read.table("../output/publicData/mm_mgi_tfs.txt")
+tfSelected <- read.table("../input/selectedTF.txt")
+seurat <- readRDS("../../herault_et_al/scHSC_herault/report/seurat_report.rds")
+monocle <- readRDS("../../herault_et_al/scHSC_herault/report/monocle_report.rds")
+
+# Loading regulon score table
+regulonTable <- read.csv("../output/ScenicRNA_multipleRuns/AUCell_maskDropouts/regulons_enrichment.csv",row.names = 1,check.names = F)
+
+# only analyse postive regulons score
+
+regulonTable <- regulonTable[,colnames(regulonTable)[which(endsWith(colnames(regulonTable),suffix = "+)"))]]
+
+# Adding regulon scores to metadata
+
+# store the data in a new assay in the seurat object of ordered cells
+auCell_data <- t(regulonTable)
+
+seurat[["AUCell"]] <- CreateAssayObject(data=auCell_data)
+
+```
+
+## table on regulon results
+```{r}
+allRegulons <- names(rjson::fromJSON(file = "../output/ScenicRNA_multipleRuns/cis_target_maskDropouts/aggregatedRegulons.json"))
+
+onlyYoungReg <- rjson::fromJSON(file = "../output/ScenicRNA_multipleRuns_young/cis_target_maskDropouts/aggregatedRegulons.json")
+
+onlyYoungRegulons <- names(onlyYoungReg)
+onlyOldReg <- rjson::fromJSON(file = "../output/ScenicRNA_multipleRuns_old/cis_target_maskDropouts/aggregatedRegulons.json")
+onlyOldRegulons <- names(onlyOldReg)
+
+regulonResultTable <- data.frame(all = as.vector(table(endsWith(allRegulons,'-)'))),
+                                 young = as.vector(table(endsWith(onlyYoungRegulons,'-)'))),
+                                 old = as.vector(table(endsWith(onlyOldRegulons,'-)'))))
+
+rownames(regulonResultTable) <- c("(+)","(-)")
+regulonResultTable
+``` 
+
+
+
+## settings
+```{r}
+blank <- grid.rect(gp=gpar(col="white"),draw = F)
+
+colorAge <-  c("#FF8000","#664CFF")
+
+colorTrajStateFinal <- c("#999999","#F0E442","#009E73","#E69F00", "#56B4E9" )
+
+
+#colorObs <-  c("#490092","#b66dff","#999999","#ffb6db","#009E73", "#F0E442","#E69F00",
+#               "#924900","#56B4E9","#0000FF")
+#names(colorObs) <- c("iHSC","srHSC","qHSC","ifnHSC","preDiff","pLymph","pNeu","pMast","pMk","pEr")
+
+colorObs <-  c("#490092","#b66dff","#999999","#ffb6db","#009E73", "#F0E442","#E69F00",
+              "#56B4E9","#0000FF")
+names(colorObs) <- c("iHSC","srHSC","qHSC","ifnHSC","preDiff","pLymph","pNeuMast","pMk","pEr")
+
+
+tfKrumAdapt <-c("Tal1","Fli1","Gata2","Ikzf1","Spi1","Cebpa","Gata1","Zfpm1","Klf1")
+
+#show_col(colorObs)
+```
+
+
+## New idents for modelling
+pNeu and pMast are gathered as pMast succeed to pNeu in pseudotime
+```{r}
+seurat$Pseudotime <- NA
+seurat@meta.data[colnames(monocle),"Pseudotime"] <- pData(monocle)[colnames(monocle),"Pseudotime"]
+seurat$State <- NA
+seurat@meta.data[colnames(monocle),"State"] <- pData(monocle)[colnames(monocle),"State"]
+seurat$observation <- NA
+seurat$observation[seurat$Pseudotime < 2 & seurat$phases == "G1/G0"] <- "iHSC"
+seurat$observation[seurat$Pseudotime < 2 & seurat$phases == "G2/M"] <- "srHSC"
+seurat$observation[seurat$numclust == "tgf"] <- "qHSC"
+seurat$observation[seurat$numclust == "ifn"] <- "ifnHSC"
+seurat$observation[seurat$numclust == "diff"] <- "preDiff"
+seurat$observation[seurat$numclust == "pL1" & seurat$State == 2] <- "pLymph"
+seurat$observation[seurat$numclust == "pMk" & seurat$State == 5 ] <- "pMk"
+seurat$observation[seurat$numclust == "pEr" & seurat$State == 5 ] <- "pEr"
+seurat$observation[seurat$numclust %in% c("pNeu","pMast") & seurat$State == 4 ] <- "pNeuMast"
+#seurat$observation[seurat$numclust == "pMast" & seurat$State == 4 ] <- "pMast"
+
+
+
+seurat$isObs <- FALSE
+seurat$isObs[!is.na(seurat$observation)] <- TRUE
+
+pData(monocle)[colnames(monocle),"observation"] <- seurat@meta.data[colnames(monocle),"observation"] 
+pData(monocle)[colnames(monocle),"isObs"] <- seurat@meta.data[colnames(monocle),"isObs"] 
+
+```
+
+##Trajectory plots
+```{r, fig.height=3,fig.width=6}
+trajPt <- plot_cell_trajectory(monocle,color_by = "Pseudotime",
+                               theta = 180,
+                               show_branch_points = F,
+                               show_tree = F,cell_size = 0.5)  + viridis::scale_color_viridis(option = "D")
+
+trajState <- plot_cell_trajectory(monocle,color_by = "State",
+                                  theta = 180,
+                                  show_branch_points = F,
+                                  show_tree = F,cell_size = 0.5) + 
+  scale_color_manual(values = colorTrajStateFinal)+ 
+  theme(legend.title = element_blank())+
+  guides(colour = guide_legend(override.aes = list(size=3)))
+
+grid.arrange(trajState,blank,trajPt,ncol=3,widths = c(10,1,10))
+```
+
+Trajectory observation plots
+```{r fig.height =  5, fig.width = 4.5}
+monocle$observation <- factor(monocle$observation,levels = names(colorObs))
+plot_cell_trajectory(monocle,color_by = "observation",
+                     theta = 180,
+                     show_branch_points = F,
+                     show_tree = F,cell_size = 0.5) + 
+  scale_color_manual(values = colorObs,breaks = names(colorObs))+ 
+  guides(colour = guide_legend(override.aes = list(size=5),
+                               direction = "horizontal")
+         ) + 
+  theme(legend.title = element_blank(),
+       legend.position =  "bottom")
+```
+```{r  fig.height =  5, fig.width = 4.5}
+colorPhases <- c(brewer.pal(9,"RdPu"))[c(3,6,9)]
+
+plot_cell_trajectory(monocle,color_by = "phases",
+                     theta = 180,
+                     show_branch_points = F,
+                     show_tree = F,cell_size = 0.5) + 
+  scale_color_manual(values = colorPhases)+ 
+  guides(colour = guide_legend(override.aes = list(size=5),
+                               direction = "horizontal")
+         ) + 
+  theme(legend.title = element_blank(),
+       legend.position =  "bottom")
+```
+
+Keep only cells in defined observations
+```{r}
+Idents(seurat) <- "observation"
+seuratObs <- subset(seurat,ident=names(colorObs))
+seuratObs
+```
+
+
+## Find activating regulon Markers of observation
+```{r fig.height = 7 , fig.width = 9}
+#find cluster regulon markers
+Idents(seuratObs) <- "observation"
+
+#Set AUCell slot 
+DefaultAssay(seuratObs) <- "AUCell"
+
+observationRegulon <- FindAllMarkers(seuratObs,
+                                     only.pos = T,
+                                     logfc.threshold= 0,
+                                     pseudocount.use = 1,
+                                     min.pct = 0.1)
+
+# Compute true mean difference in score because Seurat comput only logFC
+# The featureDiff functions is loaded from ../R_src/computeDiffFun.R file
+
+observationRegulon$avg_diff <- NA
+
+for (rm in rownames(observationRegulon)) {
+  feature <- observationRegulon[rm,"gene"]
+  cells.1 <- colnames(seuratObs)[which(seuratObs$observation == observationRegulon[rm,"cluster"])]
+  cells.2 <- colnames(seuratObs)[which(seuratObs$observation != observationRegulon[rm,"cluster"])]
+  observationRegulon[rm,"avg_diff"] <- featureDiff(seuratObs,cells.1,cells.2,feature)
+}
+
+# cut off on p adjusted value
+observationRegulon <- observationRegulon[which(observationRegulon$p_val_adj < 0.001 & observationRegulon$avg_diff > 0.001),]
+
+
+# rename some columns
+colnames(observationRegulon) <- c("p_val","avg_logFC","pct.1","pct.2","p_val_adj","observation","regulon","avg_diff")
+
+# order columns
+observationRegulon <- observationRegulon[,c("regulon","observation","avg_diff","p_val_adj","p_val","pct.1","pct.2")]
+
+observationRegulon[observationRegulon$regulon %in% paste0(tfKrumAdapt,"(+)"),]
+
+
+Idents(seuratObs) <- "observation"
+
+
+
+```
+
+##Hierarchical clustering on all activating regulons
+Highligth specific TF
+```{r,fig.width=6,fig.height=10}
+seuratObs@meta.data$observation <- factor(seuratObs@meta.data$observation,levels =c("iHSC","srHSC","qHSC","ifnHSC","preDiff","pLymph","pNeuMast","pMk","pEr"))
+
+Idents(seuratObs) <- "observation"
+
+reg <- rownames(seuratObs)
+#reg <- unique(observationRegulon$regulon)
+avgClustAucAllRegMark <- AverageExpression(
+  seuratObs,
+  #seuratObs,
+  #slot = "data",
+  assays = "AUCell",
+  #add.ident = "AGE",
+  features =  reg,
+  return.seurat = T
+)
+
+ord<- hclust( dist(GetAssayData(avgClustAucAllRegMark,slot="scale.data"), 
+                   method = "euclidean"),method = "ward.D2")$order
+
+selectedTF <- c("Junb","Egr1","Myc","Klf4","Klf6","Srf",
+                "Bclaf1","Tal1",
+                "Fli1","Gata2","Ikzf1",
+                "Spi1","Cebpa","Gata1",
+                "Klf1","Stat1","Irf7","Mef2c")
+
+
+DoHeatmap(avgClustAucAllRegMark,
+          features = reg[ord],
+          draw.lines = F,
+          group.colors = colorObs) +  
+  scale_y_discrete(breaks = c(paste0(selectedTF,"(+)"))) +
+  theme(axis.ticks.length.y =unit(.25, "cm"),
+        axis.ticks.y = element_line(size = 0.5)) +
+  scale_fill_gradientn(colors = c("darkblue","white", "darkred"))
+
+
+selectedTF <- c("Junb","Egr1","Myc","Klf4","Klf6","Srf",
+                "Bclaf1","Tal1",
+                "Fli1","Gata2","Zbtb16",
+                "Spi1","Cebpa","Gata1",
+                "Klf1","Stat1","Irf7","Mef2c")
+
+
+DoHeatmap(avgClustAucAllRegMark,
+          features = reg[ord],
+          draw.lines = F,
+          group.colors = colorObs
+          ) +  
+  scale_y_discrete(breaks = c(paste0(selectedTF,"(+)"))) +
+  theme(axis.ticks.length.y =unit(.25, "cm"),
+        axis.ticks.y = element_line(size = 0.5)) +
+  scale_fill_gradientn(colors = c("darkblue","white", "darkred")) 
+
+
+```
+```{r fig.width=6,fig.height=30}
+DoHeatmap(avgClustAucAllRegMark,
+          features = reg[ord],
+          draw.lines = F,
+          group.colors = colorObs)+
+  scale_fill_gradientn(colors = c("darkblue", "white", "darkred"))
+```
+## Regulon network analysis
+
+# Analyse complete regulon results in each condition
+compute a normalised regulation score on all runs
+```{r}
+onlyYoungReg <- read.table("../output/regulonAnalysis/youngRegulonTable.tsv")
+onlyOldReg <- read.table("../output/regulonAnalysis/oldRegulonTable.tsv")
+
+
+computeInteractionScore <- function(regTable) {
+  colnames(regTable) <-str_split_fixed(colnames(regTable),pattern = "_",n=2)[,1]
+
+  regTable$regScore <- 0
+  regTable$regScoreNorm <- 0
+  regTable$regRank
+  for (t in unique(regTable$gene)) {
+    regulators <- regTable[regTable$gene == t,]
+    regulators$regScore <- as.numeric(regulators$recoveredTimes) * regulators$importanceMean #NA if auto-reg
+    regulators$regScoreNorm <- regulators$regScore / sum(regulators$regScore,na.rm = T) #NA if auto-reg
+    regulators$regRank <- rank(-regulators$regScore)
+    regTable[rownames(regulators),c("regScore","regScoreNorm","regRank")] <- regulators[rownames(regulators),c("regScore","regScoreNorm","regRank")]
+
+  }
+  return(regTable)
+}
+
+onlyOldReg <- computeInteractionScore(onlyOldReg)
+onlyYoungReg <- computeInteractionScore(onlyYoungReg)
+
+
+allCellReg <- interactionsTable0[,c(1:7)]
+
+allCellReg <- computeInteractionScore(allCellReg)
+
+allCellReg$regScoreNorm_young <- 0
+allCellReg$regScoreNorm_old <- 0
+allCellReg[allCellReg$regulon == allCellReg$gene,"regScoreNorm_young"] <- NA
+allCellReg[allCellReg$regulon == allCellReg$gene,"regScoreNorm_old"] <- NA
+
+
+recovRegYoung <- rownames(allCellReg)[rownames(allCellReg) %in%rownames(onlyYoungReg)]
+allCellReg[recovRegYoung,"regScoreNorm_young"] <- onlyYoungReg[recovRegYoung,"regScoreNorm"]
+allCellReg[recovRegYoung,"recoveredTimes_young"] <- onlyYoungReg[recovRegYoung,"recoveredTimes"]
+
+recovRegOld <- rownames(allCellReg)[rownames(allCellReg) %in%rownames(onlyOldReg)]
+allCellReg[recovRegOld,"regScoreNorm_old"] <- onlyOldReg[recovRegOld,"regScoreNorm"]
+allCellReg[recovRegOld,"recoveredTimes_old"] <- onlyOldReg[recovRegOld,"recoveredTimes"]
+
+allCellReg$regScoreNormDiff <- allCellReg$regScoreNorm_old - allCellReg$regScoreNorm_young
+#allCellReg$regScoreNormRatio <- allCellReg$regScoreNorm_old / allCellReg$regScoreNorm_young
+
+allCellReg <- allCellReg[order(abs(allCellReg$regScoreNormDiff),decreasing = T),]
+
+allCellReg[allCellReg$regulon %in% selectedTF & allCellReg$gene %in% selectedTF,]
+
+interactionsTable0 <- allCellReg
+
+```
+
+
+
+## Bone marow cistrome analysis
+```{r}
+cistromeReg <- read.table("../output/Cistrome_BM/cistromeReg.tsv")
+## annotate interactionsTable0 with cistrome analysis result
+interactionsTable0$interaction0 <- paste(interactionsTable0$regulon,interactionsTable0$gene,sep = "_")
+
+interactionsTable0$Cistrome_BM <- NA
+interactionsTable0[interactionsTable0$regulon  %in% cistromeReg$regulon,"Cistrome_BM"] <- F
+interactionsTable0[interactionsTable0$interaction0  %in% cistromeReg$interaction,"Cistrome_BM"] <- T 
+
+print("regulon available in cistrome:")
+table(unique(interactionsTable0$regulon )%in% unique(cistromeReg$regulon))
+print("scenic interaction found with beta when TF is available:")
+table(interactionsTable0$Cistrome_BM)/sum(table(interactionsTable0$Cistrome_BM))
+
+interactionsTable0$nbRecovExp <- NA
+interactionsTable0$nbExp <- NA
+interactionsTable0$adjustedScore <- NA
+
+interScenicBeta <- unique(interactionsTable0$interaction0)[unique(interactionsTable0$interaction0) %in% unique(cistromeReg$interaction)]
+
+availableTF <- unique(interactionsTable0$regulon)[unique(interactionsTable0$regulon )%in% unique(cistromeReg$regulon)]
+
+for (r in availableTF) {
+  interactionsTable0$nbExp[interactionsTable0$regulon == r] <- unique(cistromeReg$nbExp[cistromeReg$regulon == r])
+  interactionsTable0$adjustedScore[interactionsTable0$regulon == r] <- 0
+  interactionsTable0$nbRecovExp[interactionsTable0$regulon == r] <- 0
+
+}
+for (i in interScenicBeta) {
+  interactionsTable0[interactionsTable0$interaction0 == i,c("nbRecovExp","adjustedScore")] <- cistromeReg[cistromeReg$interaction== i,c("nbRecovExp","adjustedScore")]
+}
+
+```
+
+## Regulon Network analysis
+
+```{r}
+#Create node table with top observation for regulon network analysis
+observationRegulonTop <- observationRegulon
+observationRegulonTop <- observationRegulon[order(observationRegulon$avg_diff,decreasing = T),]
+
+observationRegulonTop <- observationRegulonTop[!duplicated(observationRegulonTop$regulon),]
+
+observationRegulonTop <- observationRegulonTop[order(observationRegulonTop$observation),]
+
+observationRegulonTop$gene <- str_split_fixed(observationRegulonTop$regulon,pattern = "\\(",n=2)[,1]
+
+observationRegulonTop[order(observationRegulonTop$observation,observationRegulonTop$avg_diff,decreasing = c(T,T)),]
+
+```
+
+```{r}
+regulonMarker <- str_split_fixed(unique(observationRegulon$regulon),"\\(",n=2)[,1]
+regulatorNet <- interactionsTable0[interactionsTable0$gene %in% interactionsTable0$regulon &
+                                    interactionsTable0$recoveredTimes >= 45 &
+                                    interactionsTable0$regulon %in% regulonMarker &
+                                    interactionsTable0$gene %in% regulonMarker 
+
+                                   #interactionsTable$regScoreNorm > 0.1
+                                  ,]  
+#regulatorNet <- na.exclude(regulatorNet) ## exlude interaction not recovered in all the 3 cell sets
+#regulonNetwork <- delete.vertices(degree(regulonNetwork)==0) # remove loops and multiple edges additionally delete isolated nodes
+regulatorNet$weight <- regulatorNet$regScoreNorm
+
+regulonNetwork <- graph_from_data_frame(regulatorNet,
+                                        directed = TRUE,
+                                        vertices = NULL
+)
+regulonNetwork <- simplify(regulonNetwork,remove.multiple = F,remove.loops = T)
+
+
+nodeTable <- data.frame(regulon = names(V(regulonNetwork)))
+rownames(nodeTable) <- nodeTable$regulon
+
+length(V(regulonNetwork))
+length(E(regulonNetwork))
+sccRegulonsGraph <- components(regulonNetwork,mode = "strong")
+
+
+majorScc <- sccRegulonsGraph$membership[which(sccRegulonsGraph$membership == which.max(sccRegulonsGraph$csize))]
+set.seed(2021)
+regulonNetworkLouvainclustering <- cluster_louvain(as.undirected(regulonNetwork))
+nodeTable$community <- NA
+for (m in unique(regulonNetworkLouvainclustering$membership)) {
+  comNodes <- regulonNetworkLouvainclustering$names[which(regulonNetworkLouvainclustering$membership == m)]
+  nodeTable[comNodes,"community"] <- paste0("C_",m)
+  print('cluster')
+  print(comNodes)
+  #plot(subgraph(regulonNetwork,regulonNetworkLouvainclustering$names[which(regulonNetworkLouvainclustering$membership == m)]))
+}
+
+
+
+nodeTable$observation <- NA
+for (o in unique(seuratObs$observation)) {
+  observationRegulonTop2 <- observationRegulonTop[observationRegulonTop$gene %in% nodeTable$regulon,]
+  nodeObs <- observationRegulonTop2[observationRegulonTop2$observation == o,"gene"]
+  nodeTable[nodeObs ,"observation"] <- o
+}
+
+# write file for visualisation in cytoscape
+write.table(x = regulatorNet,file = "tables/regulatorNet45.tsv",row.names = F,col.names = T,sep = '\t',quote = F)
+write.table(x = nodeTable,file = "tables/nodeTable45.tsv",row.names = F,col.names = T,sep = '\t',quote = F)
+
+observationRegulon$gene <- str_split_fixed(observationRegulon$regulon,"\\(",2)[,1]
+
+observationRegulon$community <- NA
+for (n in observationRegulon$gene) {
+  
+observationRegulon[observationRegulon$gene == n,"community"] <- nodeTable[n,"community"]
+}
+
+observationRegulon$community <- mapvalues(from = c("C_7","C_2","C_3","C_4","C_5","C_12","C_9","C_1","C_11","C_13","C_10","C_6","C_8"),
+                                          to = c(paste0(rep("C",13),c(1:13))),x = observationRegulon$community)
+
+write.table(observationRegulon,"tables/regulonPopulationMarker.tsv",sep = "\t",quote = F,row.names = F)
+```
+
+## Some comparison with cistrome
+```{r}
+print("number of interaction from cistrome beta:")
+length(regulatorNet$Cistrome_BM)
+print("scenic regulon available in cistrome:")
+table(unique(regulatorNet$regulon )%in% unique(cistromeReg$regulon))
+table(unique(regulatorNet$regulon )%in% unique(cistromeReg$regulon))/length(unique(regulatorNet$regulon ))
+print("scenic interaction found with beta when TF is available in Cistrome:")
+table(regulatorNet$Cistrome_BM)/length(regulatorNet$Cistrome_BM[!is.na(regulatorNet$Cistrome_BM)])
+```
+
+## Regulon activity of selected TF for constrained trajectory
+
+
+```{r fig.height=5,fig.width=7}
+#selectedTF <- c("Spi1","Cebpa","Zfpm1","Gata1","Klf1","Tal1","Fli1","Gata2","Junc","Egr1","Egr2","Nab2","Irf1")
+selectedTF <- c("Egr1","Junb","Bclaf1","Myc","Fli1","Gata2","Spi1","Cebpa","Gata1","Klf1","Tal1","Ikzf1","Zfpm1")
+DefaultAssay(seuratObs) <- "AUCell"
+
+selectedTF <- selectedTF[paste0(c(selectedTF),"(+)")%in% rownames(seuratObs)]
+
+
+seuratObs@meta.data$observation <- factor(seuratObs@meta.data$observation,levels =c("iHSC","srHSC","qHSC","ifnHSC","preDiff","pLymph","pNeuMast","pMk","pEr"))
+
+Idents(seuratObs) <- "observation"
+
+
+seuratObs2 <- subset(seuratObs,ident = c("ifnHSC"),invert = T)
+  
+
+
+
+
+
+
+avgClustAuc <- AverageExpression(
+  seuratObs2,
+  #seuratObs,
+  #slot = "data",
+  assays = "AUCell",
+  features = paste0(c(selectedTF),"(+)"),
+  return.seurat = T
+)
+DoHeatmap(avgClustAuc,features = paste0(selectedTF,"(+)"),group.colors = colorObs,size = 3,draw.line =F )+
+  scale_fill_gradientn(colors = c("darkblue", "white", "darkred"))
+```
+
+## Discretization with Kmeans
+```{r}
+
+# discretizeFeature <- function(avgClust,feature,centers = 2) {
+#    set.seed(2020)
+#   kmeanRes <- kmeans(GetAssayData(avgClust,slot = "data")[feature,],centers = centers)
+#   if (centers == 3) {
+#     values <- c(-1,0,1)
+#     names(values) <- names(kmeanRes$centers[order(kmeanRes$centers),])
+#   } else {
+#     values <- c(-1,1)
+#     names(values) <- names(kmeanRes$centers[order(kmeanRes$centers),])
+#   }
+#   disVec <- kmeanRes$cluster                 
+#   disVec <- mapvalues(from = names(values),to = values,x = disVec)
+#   disVec <- t(as.data.frame(disVec))
+#   rownames(disVec) <- feature
+#   return(disVec)
+# }
+# centers = c(3,3,3,3,3,3,3,3,2,2,3,2)
+# names(centers) <- rownames(avgClustAuc)
+# disKmeansAuc <- discretizeFeature(avgClustAuc,names(centers)[1],centers = centers[1])
+# 
+# for (t in 2:length(centers)) {
+#   disKmeansAuc <- rbind(disKmeansAuc,discretizeFeature(avgClustAuc,names(centers)[t],centers[t]))
+# }
+# 
+# avgClustAuc[["discret"]] <- CreateAssayObject(data=disKmeansAuc)
+# 
+# DoHeatmap(avgClustAuc,assay = "discret",slot = "data",features = paste0(selectedTF,"(+)"),group.colors = colorObs,size = 3)
+
+```
+
+# discretization with all cells for regulons with more than 10 activated targets
+
+
+```{r}
+discretizeFeatureAllCells <- function(seuratObs2,feature,centers = 2) {
+  set.seed(2020)
+  kmeanRes <- kmeans(GetAssayData(seuratObs2,slot = "data")[feature,],centers = centers)
+  if (centers == 3) {
+    values <- c(-1,0,1)
+    names(values) <- names(kmeanRes$centers[order(kmeanRes$centers),])
+  } else {
+    values <- c(-1,1)
+    names(values) <- names(kmeanRes$centers[order(kmeanRes$centers),])
+  }
+  disVec <- kmeanRes$cluster                 
+  disVec <- mapvalues(from = names(values),to = values,x = disVec)
+  obs <- seurat@meta.data[names(disVec),"observation"]
+
+  resTable <- data.frame(group = disVec,observation = obs)
+  resTable2 <- table(resTable)
+  disVec <- apply(resTable2, 2, function(x) which.max (x))
+  disVec <- mapvalues(from = unique(disVec)[order(unique(disVec))],to = values[c(1:length(unique(disVec)))],x = disVec)
+
+
+  
+  disVec <- t(as.data.frame(disVec))
+  rownames(disVec) <- feature
+
+  return(disVec)
+}
+selectedTF <- c("Egr1","Junb","Bclaf1","Myc","Fli1","Gata2","Spi1","Cebpa","Gata1","Klf1")
+selection <- paste0(selectedTF,'(+)')
+centers <- rep(2,length(selection))
+centers = c(2,2,2, 2, 2, 2, 2, 2, 2, 2)
+#centers = c(3,3,3,3,3,3,3,3,3,3,3,3)
+names(centers) <- selection
+disKmeansAucAll <- discretizeFeatureAllCells(seuratObs2,names(centers)[1],centers = centers[1])
+
+for (t in 2:length(centers)) {
+  print(names(centers)[t])
+  disKmeansAucAll <- rbind(disKmeansAucAll,discretizeFeatureAllCells(seuratObs2,names(centers)[t],centers[t]))
+}
+
+avgClustAuc[["discretAll"]] <- CreateAssayObject(data=disKmeansAucAll)
+
+DoHeatmap(avgClustAuc,assay = "discretAll",slot = "data",features = paste0(selectedTF,"(+)"),group.colors = colorObs,size = 3,draw.lines = F) +
+  scale_fill_gradientn(colors = c("darkblue", "grey", "darkred"))
+
+```
+```{r}
+Idents(seuratObs) <- "SeuratProject"
+VlnPlot(seuratObs,features = c("Junb(+)"),pt.size = 0.0001) + NoLegend() +
+  geom_hline(yintercept=0.041,color = "red") +
+  ylab("AUCell score") +
+  xlab("All cells")
+
+```
+
+## RNA average expression
+
+```{r fig.height=4,fig.width=6}
+selectedTF <- c("Egr1","Junb","Tal1","Bclaf1","Myc","Fli1","Gata2","Ikzf1","Spi1","Cebpa","Gata1","Klf1","Zfpm1")
+CDK46CycDGenes <- c("Ccnd1","Ccnd2","Ccnd3","Cdk4","Cdk6")
+CIPKIPGenes  <- c("Cdkn1b","Cdkn1a","Cdkn1c")
+
+cellCycleGenes <- c(CDK46CycDGenes ,CIPKIPGenes)
+
+cellCycleGenes <- cellCycleGenes[cellCycleGenes%in% rownames(seurat)]
+
+avgClustRNA <- AverageExpression(
+  seuratObs2,
+  #slot = "data",
+  assays = "RNA",
+  features = c(selectedTF,cellCycleGenes),
+  return.seurat = T
+)
+
+avgClustRNACC <- data.frame(GetAssayData(avgClustRNA,assay = "RNA",slot = "data"))
+CIPKIP <- colSums(avgClustRNACC[CIPKIPGenes[CIPKIPGenes %in% rownames(avgClustRNACC)],])
+CDK46CycD <- colSums(avgClustRNACC[CDK46CycDGenes[CDK46CycDGenes %in% rownames(avgClustRNACC)],])
+avgClustRNACC <- rbind(avgClustRNACC,CIPKIP=CIPKIP)
+avgClustRNACC <- rbind(avgClustRNACC,CDK46CycD=CDK46CycD)
+avgClustRNACC <- avgClustRNACC[c(selectedTF,c("CIPKIP","CDK46CycD")),]
+
+avgClustRNACC_seurat <- CreateSeuratObject(counts = avgClustRNACC)
+avgClustRNACC_seurat <- ScaleData(avgClustRNACC_seurat)
+Idents(avgClustRNACC_seurat) <- colnames(avgClustRNACC_seurat)
+
+
+DoHeatmap(avgClustRNACC_seurat,
+          features = c(selectedTF,c("Zfpm1","CDK46CycD","CIPKIP")),
+          group.colors = colorObs,
+          size = 3,
+          draw.lines = FALSE)+
+  scale_fill_gradientn(colors = c("darkblue", "white", "darkred"))
+```
+
+## Discretization of RNA levels for genes and regulons =< 10 activated targets
+
+```{r}
+selection <- c("Tal1","Ikzf1","Zfpm1",cellCycleGenes)
+
+avgClustRNA <- AverageExpression(
+  seuratObs2,
+  #slot = "data",
+  assays = "RNA",
+  features = selection,
+  return.seurat = T
+)
+
+
+discretizeFeature <- function(avgClust,feature,centers = 2,removeZero =F) {
+  set.seed(2020)
+  kmeanRes <- kmeans(GetAssayData(avgClust,slot = "data")[feature,],centers = centers)
+  if (centers == 3) {
+    values <- c(-1,0,1)
+    names(values) <- names(kmeanRes$centers[order(kmeanRes$centers),])
+  } else {
+    values <- c(-1,1)
+    names(values) <- names(kmeanRes$centers[order(kmeanRes$centers),])
+  }
+  disVec <- kmeanRes$cluster                 
+  disVec <- mapvalues(from = names(values),to = values,x = disVec)
+  disVec <- t(as.data.frame(disVec))
+  rownames(disVec) <- feature
+  return(disVec)
+}
+centers <- rep(3,length(selection))
+#centers = c(2,3,2,2,2,2,2,2,2,2)
+#centers = c(2,3,3,3,3,2,3,3,2,2,3,2,2,2,3)
+#centers = c(3,3,3,3,3,3,3,3,3,3,3,3,2,2,2)
+names(centers) <- rownames(avgClustRNA)
+disKmeansRNA <- discretizeFeature(avgClustRNA,names(centers)[1],centers = centers[1])
+
+for (t in 2:length(centers)) {
+  disKmeansRNA <- rbind(disKmeansRNA,discretizeFeature(avgClustRNA,names(centers)[t],centers[t]))
+}
+
+avgClustRNA[["discret"]] <- CreateAssayObject(data=disKmeansRNA)
+
+DoHeatmap(avgClustRNA,
+          assay = "discret",
+          slot = "data",
+          features = selection,
+          group.colors = colorObs,
+          size = 3,draw.lines = FALSE)+
+  scale_fill_gradientn(colors = c("darkblue", "grey", "darkred"))
+
+```
+# Sum discretization for cell cycle gene complexes
+```{r, fig.height=5,fig.width=5}
+disMatrix <- rbind(disKmeansAucAll[,colnames(disKmeansRNA)],disKmeansRNA[c("Tal1","Ikzf1","Zfpm1"),])
+
+CDK46CycD <- colSums(disKmeansRNA[CDK46CycDGenes,])
+CDK46CycD[CDK46CycD > 1] <- 1
+CDK46CycD[CDK46CycD < 1] <- -1
+
+CIPKIP <- colSums(disKmeansRNA[CIPKIPGenes,])
+CIPKIP[CIPKIP > 1] <- 1
+CIPKIP[CIPKIP < 1] <- -1
+
+disMatrix <- rbind(disMatrix,CDK46CycD,CIPKIP)
+
+colnames(disMatrix)[colnames(disMatrix) == "qHSC"] <- "qHSC"
+
+df2 <- melt(disMatrix[rev(rownames(disMatrix)),])
+ggplot(df2) +
+  geom_tile( aes(x=Var2 , y=Var1, fill= as.factor(value) )) +
+  scale_fill_manual(guide=FALSE, values=c("darkblue", "grey","darkred")) +
+  scale_x_discrete(guide = guide_axis(angle = 45)) 
+
+disMatrixBonesis <- disMatrix
+disMatrixBonesis[disMatrixBonesis == 0] <- ""
+
+disMatrixBonesis[disMatrixBonesis == -1] <- "0"
+disMatrixBonesis[disMatrixBonesis == 1] <- "1"
+
+
+rownames(disMatrixBonesis) <- str_split_fixed(rownames(disMatrixBonesis),pattern = "\\(",n=2)[,1]
+write.csv(t(disMatrixBonesis),"../output/Inference/obsDataDis.csv",quote = F) 
+
+
+```
+
+## Some plot on influence graph
+
+```{r, fig.height= 4,fig.width=4}
+infGraphTable <- read.table("../output/Inference/influenceGraph/infGraphTable45.tsv",sep = '\t',header = T)
+
+interactionCistromeIg <- rownames(infGraphTable[(!is.na(infGraphTable$cistromeAdjScore) & infGraphTable$cistromeAdjScore >0),])
+interactionRefIg <- rownames(infGraphTable[!is.na(infGraphTable$ref),])
+interactionScenicIg <- rownames(infGraphTable[infGraphTable$Scenic,])
+
+
+
+ggVennDiagram(list(Scenic= interactionScenicIg,
+          Reference = interactionRefIg,
+          cistrome = interactionCistromeIg), 
+          label_alpha = 0)
+
+```
+
+
+
+## Save for next step (figure 3)
+```{r}
+saveRDS(seuratObs,"seuratObs.rds")
+write.table(interactionsTable0,"tables/interactionTable.tsv",sep ="\t",quote = F,row.names = F)
+```
+

@@ -1,0 +1,689 @@
+---
+title: "figures"
+author: "Herault"
+date: "19/01/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## env
+```{r cars}
+suppressMessages(library(ggplot2))
+suppressMessages(library(spatstat))
+suppressMessages(library(Seurat))
+suppressMessages(library(monocle))
+#suppressMessages(library(BoolNet))
+suppressMessages(library(dplyr))
+suppressMessages(library(igraph))
+suppressMessages(library(plyr))
+suppressMessages(library(stringr))
+suppressMessages(library(grid))
+suppressMessages(library(gridExtra))
+suppressMessages(library(RColorBrewer))
+#suppressMessages(library(gProfileR))
+suppressMessages(library(gplots))
+suppressMessages(library(reshape2))
+suppressMessages(library(ggpmisc))
+suppressMessages(library(ggthemes))
+
+if (!requireNamespace("ggVennDiagram", quietly = TRUE))
+  install.packages("ggVennDiagram",repos='http://cran.us.r-project.org')
+
+suppressMessages(library("ggVennDiagram"))
+
+
+
+library("readxl")
+source("../R_src/computeDiffFun.R")
+source("../R_src/Enrichment.R")
+source("../R_src/getSigPerCells.R")
+source("../R_src/funForSeurat.R")
+source("../R_src/funForPlots.R")
+
+
+
+```
+
+## load results
+
+```{r pressure, echo=FALSE}
+interactionsTable0 <- read.table("../output/regulonAnalysis/mainRegulonTable.tsv") 
+tfTested <- read.table("../output/publicData/mm_mgi_tfs.txt")
+tfSelected <- read.table("../input/selectedTF.txt")
+#seurat <- readRDS("../../herault_et_al/scHSC_herault/report/seurat_report.rds")
+seuratObs <- readRDS("seuratObs.rds")
+monocle <- readRDS("../../herault_et_al/scHSC_herault/report/monocle_report.rds")
+
+# Loading regulon score table
+interactionsTable0 <- read.table("tables/interactionTable.tsv",header = T,sep = "\t")
+
+
+```
+
+## settings
+```{r}
+blank <- grid.rect(gp=gpar(col="white"),draw = F)
+
+colorAge <-  c("#FF8000","#664CFF")
+
+colorTrajStateFinal <- c("#999999","#F0E442","#009E73","#E69F00", "#56B4E9" )
+
+
+#colorObs <-  c("#490092","#b66dff","#999999","#ffb6db","#009E73", "#F0E442","#E69F00",
+#               "#924900","#56B4E9","#0000FF")
+#names(colorObs) <- c("iHSC","srHSC","qHSC","ifnHSC","preDiff","pLymph","pNeu","pMast","pMk","pEr")
+
+colorObs <-  c("#490092","#b66dff","#999999","#ffb6db","#009E73", "#F0E442","#E69F00",
+              "#56B4E9","#0000FF")
+names(colorObs) <- c("iHSC","srHSC","qHSC","ifnHSC","preDiff","pLymph","pNeuMast","pMk","pEr")
+
+```
+
+
+
+## Table for interactions table retained for influence graph
+
+Add normalised grnboost2 importance score.
+
+```{r}
+interactionTableSolution <- read.csv("tables/interactionTableFinalSol.csv",row.names = 1)
+selectedTF <- c("Junb","Egr1","Myc","Bclaf1","Tal1","Fli1","Gata2","Ikzf1","Spi1","Cebpa","Gata1","Klf1","Zfpm1")
+CDK46CycDGenes <- c("Ccnd1","Ccnd2","Ccnd3",'Cdk4','Cdk6')
+CIPKIPGenes <- c("Cdkn1a","Cdkn1b","Cdkn1c")
+influenceGraphScenic <-interactionsTable0[(interactionsTable0$gene %in% c(selectedTF,CDK46CycDGenes,CIPKIPGenes)) &
+                     (interactionsTable0$regulon %in% c(selectedTF,CDK46CycDGenes,CIPKIPGenes)),]
+
+influenceGraphScenic$nodeModel <- influenceGraphScenic$gene
+influenceGraphScenic$nodeModel[influenceGraphScenic$gene %in% CDK46CycDGenes] <- "CDK46CycD"
+influenceGraphScenic$nodeModel[influenceGraphScenic$gene %in% CIPKIPGenes] <- "CIPKIP"
+
+influenceGraphScenic$interactionModel <- paste(influenceGraphScenic$regulon,influenceGraphScenic$nodeModel,influenceGraphScenic$mor,sep = "_")
+
+
+rownames(interactionTableSolution) <- paste(interactionTableSolution$tf,interactionTableSolution$target,sep = "_",interactionTableSolution$mor)
+
+interactionTableSolutionScenic <- influenceGraphScenic[influenceGraphScenic$interactionModel %in% rownames(interactionTableSolution),]
+#write.table(interactionTableSolutionScenic,"tables/interactionRegulonTableFinalSol.tsv",sep = '\t',quote = F, row.names = F)
+#write.table(interactionTableSolution,"tables/interactionFinalSol.tsv",sep = '\t',quote = F, row.names = F)
+```
+
+```{r}
+infGraphTable <- read.table("../output/Inference/influenceGraph/infGraphTable45.tsv",sep = '\t',header = T)
+infGraphTable$solution <- FALSE
+rownames(infGraphTable) <- paste0(infGraphTable$interaction0,"_",infGraphTable$mor)
+infGraphTable[rownames(interactionTableSolution),"solution"] <- T
+
+infGraphTable <- infGraphTable[order(infGraphTable$solution,decreasing = T),colnames(infGraphTable)[-11]]
+
+
+influenceGraphScenic$solution <- F
+
+influenceGraphScenic[influenceGraphScenic$interactionModel %in% rownames(interactionTableSolution),"solution"] <- T
+
+influenceGraphScenic <- influenceGraphScenic[order(influenceGraphScenic$solution,decreasing = T),c("regulon","gene","mor","recoveredTimes","recoveredTimes_young","recoveredTimes_old","regScoreNorm","regScoreNorm_young","regScoreNorm_old","regScoreNormDiff","adjustedScore","solution")]
+
+write.table(infGraphTable,"tables/influenceGraphWithSolution.tsv",sep = '\t',quote = F, row.names = F)
+write.table(influenceGraphScenic,"tables/influenceGraphWithSolutionRegulon.tsv",sep = '\t',quote = F, row.names = F)
+```
+
+
+
+## Aging Perturbation
+
+
+### Global heatmap with age split Hierarchical clustering on all activating regulons
+Highligth specific TF
+```{r,fig.width=8,fig.height=10}
+seuratObs@meta.data$observation <- factor(seuratObs@meta.data$observation,levels =c("iHSC","srHSC","qHSC","ifnHSC","preDiff","pLymph","pNeuMast","pMk","pEr"))
+
+Idents(seuratObs) <- "observation"
+
+reg <- rownames(seuratObs)
+#reg <- unique(observationRegulon$regulon)
+avgClustAucAllRegMark <- AverageExpression(
+  seuratObs,
+  #seuratObs,
+  #slot = "data",
+  assays = "AUCell",
+  #add.ident = "AGE",
+  features =  reg,
+  return.seurat = T
+)
+
+ord<- hclust( dist(GetAssayData(avgClustAucAllRegMark,slot="scale.data"), 
+                   method = "euclidean"),method = "ward.D2")$order
+
+
+reg <- rownames(seuratObs)
+#reg <- unique(observationRegulon$regulon)
+avgClustAucAllRegMark <- AverageExpression(
+  seuratObs,
+  #seuratObs,
+  #slot = "data",
+  assays = "AUCell",
+  add.ident = "AGE",
+  features =  reg,
+  return.seurat = T
+)
+
+avgClustAucAllRegMark@meta.data$AGE <- str_split_fixed(rownames(avgClustAucAllRegMark@meta.data),pattern = "_",n=2)[,2]
+avgClustAucAllRegMark@meta.data$observation <- factor(avgClustAucAllRegMark@meta.data$orig.ident,names(colorObs))
+#ord<- hclust( dist(GetAssayData(avgClustAucAllRegMark,slot="scale.data"), 
+#                   method = "euclidean"),method = "ward.D2")$order
+
+
+selectedTF <- c("Junb","Egr1","Myc","Klf4","Klf6","Srf",
+                "Bclaf1","Tal1",
+                "Fli1","Gata2","Ikzf1",
+                "Spi1","Cebpa","Gata1",
+                "Klf1","Stat1","Irf7","Mef2c")
+
+
+DoHeatmap(avgClustAucAllRegMark,
+          features = reg[ord],
+          draw.lines = T,
+          lines.width = 1,
+          group.colors = colorObs) +  
+  scale_y_discrete(breaks = c(paste0(selectedTF,"(+)"))) +
+  theme(axis.ticks.length.y =unit(.25, "cm"),
+        axis.ticks.y = element_line(size = 0.5))+
+  scale_fill_gradientn(colors = c("darkblue","white", "darkred"),na.value = "white") 
+
+
+selectedTF <- c("Junb","Egr1","Myc","Klf4","Klf6","Srf",
+                "Bclaf1","Tal1",
+                "Fli1","Gata2","Zbtb16",
+                "Spi1","Cebpa","Gata1",
+                "Klf1","Stat1","Irf7","Mef2c")
+
+
+
+selectedTF <- c("Egr1","Klf4","Klf6","Atf3","Atf4",
+                "Rel","Nfkb1",
+                "Jun","Fos","Junb",
+                "Spi1","Myc","Runx3","Sox3",
+                "Cebpb","Cebpe",
+                "Fli1","Mef2c")
+
+selectedTF <- c("Klf4","Klf6","Klf4","Atf3",
+                "Rel","Nfkb1","Rela","Relb",
+                "Fos","Jun",
+                "Spi1","Myc","Runx3","Sox4",
+                "Cebpb",
+                "Mef2c")
+
+DoHeatmap(avgClustAucAllRegMark,
+          features = reg[ord],
+          draw.lines = T,
+          lines.width = 1,
+          group.colors = colorObs) +  
+  scale_y_discrete(breaks = c(paste0(selectedTF,"(+)"))) +
+  theme(axis.ticks.length.y =unit(.25, "cm"),
+        axis.ticks.y = element_line(size = 0.5)) +
+  scale_fill_gradientn(colors = c("darkblue","white", "darkred"),na.value = "white") 
+
+
+
+  
+```
+
+### Solution analysis
+
+```{r, fig.height= 4,fig.width=4}
+interactionCistrome <- rownames(interactionTableSolution[(!is.na(interactionTableSolution$cistromeAdjScore) & interactionTableSolution$cistromeAdjScore >0),])
+interactionRef <- rownames(interactionTableSolution[interactionTableSolution$ref != "",])
+interactionScenic <- rownames(interactionTableSolution[interactionTableSolution$Scenic != "False",])
+
+
+
+#library(venneuler)
+
+ggVennDiagram(list(Scenic= interactionScenic,
+          Reference = interactionRef,
+          cistrome = interactionCistrome), 
+          label_alpha = 0)
+
+
+```
+
+
+### Regulon activities markers of aging
+
+### aging marker test
+
+```{r}
+seuratObs$platform <- str_split_fixed(seuratObs$sampleName,"_",2)[,2]
+
+agingRegulonPerObs<- lapply(names(colorObs),
+                            FindAgingMarkers4,
+                            seuratObs,
+                            identCol = "observation",
+                            test.use = "wilcox",
+                            keepDiverging= T,
+                            logfc.threshold = 0,
+                            pseudocount.use = 1,
+                            min.pct = 0.1,
+                            filterOnPadj = F)
+
+
+
+
+agingRegulonPerObsTable <- agingRegulonPerObs[[1]]
+for (s in c(2:length(agingRegulonPerObs))) {
+  agingRegulonPerObsTable <- rbind(agingRegulonPerObsTable,agingRegulonPerObs[[s]])
+}
+
+dim(agingRegulonPerObsTable)
+
+agingRegulonPerObsTable$State <- str_split_fixed(agingRegulonPerObsTable$Cluster,pattern = "_",n=3)[,1]
+
+colnames(agingRegulonPerObsTable)[which(colnames(agingRegulonPerObsTable)=="State")] <- "observation"
+
+
+agingRegulonPerObsTable <- getTrueDiff(seuratObs[,which(seuratObs$platform == "A")],
+                                       agingRegulonPerObsTable,
+                                       colIdent = "observation",
+                                       suffix = "A")
+
+agingRegulonPerObsTable <- getTrueDiff(seuratObs[,which(seuratObs$platform == "B")],
+                                       agingRegulonPerObsTable,
+                                       colIdent = "observation",
+                                       suffix = "B")
+
+
+agingRegulonPerObsTable$min_avg_diff <- apply(agingRegulonPerObsTable[,c("avg_diff_A","avg_diff_B")], 1, FUN=getExtAvgDiff) 
+
+
+dim(agingRegulonPerObsTable)
+
+#Exclude AUCell score differences with an opposite sign of variation (pval set to NA by FindAgingMarkers)
+agingRegulonPerObsTable <- na.exclude(agingRegulonPerObsTable)
+
+dim(agingRegulonPerObsTable)
+
+#Exclude AUCell score differences with a combined pval < 0.05
+agingRegulonPerObsTable <- agingRegulonPerObsTable[which(agingRegulonPerObsTable$minimump_p_val < 0.001),]
+
+dim(agingRegulonPerObsTable)
+
+colnames(agingRegulonPerObsTable)[which(colnames(agingRegulonPerObsTable) == "Cluster")] <- "group"
+colnames(agingRegulonPerObsTable)[which(colnames(agingRegulonPerObsTable) == "Gene")] <- "regulon"
+
+
+
+agingRegulonPerObsTable <- agingRegulonPerObsTable[,c("regulon","observation","group","minimump_p_val","max_pval","min_avg_diff","A_p_val","avg_diff_A","A_pct.1","A_pct.2","B_p_val","avg_diff_B","B_pct.1","B_pct.2")]
+
+
+
+
+# Filter on average differences before writing final table
+agingRegulonPerObsTable <- agingRegulonPerObsTable[which(abs(agingRegulonPerObsTable$min_avg_diff) > 0.001),]
+
+# regulonTestTable <- list(stateRegulon = observationRegulon,
+#                          agingRegulonPerObs = agingRegulonPerObsTable)
+
+#WriteXLS(x =regulonTestTable,"paperTables/regulonTable.xlsx",row.names = F)
+
+write.table(agingRegulonPerObsTable,"tables/regulonPopulationAgingMarker.tsv",sep = "\t",quote = F,row.names = F)
+```
+```{r}
+
+data <- ddply(agingRegulonPerObsTable,~observation + sign(min_avg_diff),nrow)
+colnames(data) <- c("observation","sign","count")
+data$observation <- factor(data$observation,levels = rev(names(colorObs)))
+ggplot(data = data,aes(y=count,fill=observation,x = sign)) +
+  geom_bar(width = 1, stat = "identity") +
+  scale_fill_manual(values = rev(colorObs))
+
+
+```
+
+
+```{r}
+selectedTF <- unique(interactionTableSolution$tf)
+agingRegulonModel <- agingRegulonPerObsTable[agingRegulonPerObsTable$regulon %in% paste0(selectedTF,"(+)"),]
+unique(agingRegulonModel$regulon)
+agingRegulonModel[order(abs(agingRegulonModel$min_avg_diff),decreasing = T),]
+agingRegulonModel[order(agingRegulonModel$regulon,decreasing = T),]
+
+```
+
+```{r, fig.height=7,fig.width=7.5}
+VlnPlot(seuratObs, unique(agingRegulonModel$regulon),split.by = "AGE",ncol = 3,pt.size = 0,split.plot = T,cols = rev(colorAge),idents = c( c("iHSC","srHSC","qHSC","preDiff","pLymph","pNeuMast","pMk","pEr"))) 
+
+```
+```{r fig.height=5,fig.width=5}
+
+VlnPlot(seuratObs, c("Egr1(+)","Junb(+)","Fli1(+)","Spi1(+)"),
+        split.by = "AGE",ncol = 2,pt.size = 0,split.plot = T,
+        cols = rev(colorAge),idents = c( c("iHSC","srHSC","qHSC","preDiff","pLymph","pNeuMast","pMk","pEr"))
+        ) 
+
+```
+
+
+```{r}
+agingRegulonModelInitial <- agingRegulonModel[agingRegulonModel$observation == "iHSC",]
+agingRegulonModelInitial[order(abs(agingRegulonModelInitial$min_avg_diff),decreasing = T),]
+
+```
+```{r}
+agingRegulonModelInitial <- agingRegulonModel[agingRegulonModel$observation == "qHSC",]
+agingRegulonModelInitial[order(abs(agingRegulonModelInitial$min_avg_diff),decreasing = T),]
+```
+```{r}
+agingRegulonModelInitial <- agingRegulonModel[agingRegulonModel$observation == "preDiff",]
+agingRegulonModelInitial[order(abs(agingRegulonModelInitial$min_avg_diff),decreasing = T),]
+```
+
+## model gene alterations
+```{r,fig.height=5,fig.width=5}
+VlnPlot(seuratObs,c("Cdkn1a","Cdkn1c","Cdkn1b"),split.by = "AGE",assay = "RNA",pt.size = 0,ncol = 2)
+```
+
+
+### Interaction score 
+
+Venn of interaction between TF in the different scenic processing
+```{r}
+onlyYoungReg <- read.table("../output/regulonAnalysis/youngRegulonTable.tsv")
+onlyOldReg <- read.table("../output/regulonAnalysis/oldRegulonTable.tsv")
+
+youngInt <- onlyYoungReg[onlyYoungReg$gene %in% tfTested$V1,"interaction"]
+agedInt <- onlyOldReg[onlyOldReg$gene %in% tfTested$V1,"interaction"]
+allInt <- interactionsTable0[interactionsTable0$gene %in% tfTested$V1,"interaction"]
+
+ggVennDiagram(list(all= allInt,
+          aged = agedInt,
+          young = youngInt))
+
+ggVennDiagram(list(all= allInt,
+          aged = agedInt[agedInt %in% allInt],
+          young = youngInt[youngInt %in% allInt]))
+
+
+```
+```{r}
+selectedTF <- c("Egr1","Junb","Bclaf1","Myc","Fli1","Gata2","Spi1","Cebpa","Gata1","Klf1","Tal1","Ikzf1","Zfpm1")
+CDK46CycDGenes <- c("Ccnd1","Ccnd2","Ccnd3","Cdk4","Cdk6")
+CIPKIPGenes  <- c("Cdkn1b","Cdkn1a","Cdkn1c")
+
+cellCycleGenes <- c(CDK46CycDGenes ,CIPKIPGenes)
+modelGenes <- c(selectedTF,CIPKIPGenes,cellCycleGenes)
+
+youngInt <- onlyYoungReg[onlyYoungReg$gene %in% modelGenes & onlyYoungReg$regulon %in% modelGenes,"interaction"]
+agedInt <- onlyOldReg[onlyOldReg$gene %in% modelGenes & onlyOldReg$regulon %in% modelGenes,"interaction"]
+allInt <- interactionsTable0[interactionsTable0$gene %in% modelGenes & interactionsTable0$regulon %in% modelGenes,"interaction"]
+
+ggVennDiagram(list(all= allInt,
+          aged = agedInt,
+          young = youngInt))
+
+```
+
+
+```{r fig.height=4,fig.width=4}
+
+
+regScoreNormDiffData <- na.exclude(interactionTableSolutionScenic[abs(interactionTableSolutionScenic$regScoreNormDiff) > 0.10,c("interaction","regScoreNorm","regScoreNorm_young","regScoreNorm_old","regScoreNormDiff")])
+regScoreNormDiffData$AGE <- "Aged"
+regScoreNormDiffData$AGE[regScoreNormDiffData$regScoreNormDiff<0] <- "Young"
+
+regScoreNormDiffData$interaction <- factor(regScoreNormDiffData$interaction,levels = rev(regScoreNormDiffData$interaction))
+ggplot(regScoreNormDiffData,aes(x = interaction,y=regScoreNormDiff,fill = AGE)) + geom_bar(stat="identity") + 
+  coord_flip() +
+  scale_fill_manual(values = colorAge)
+```
+
+
+```{r}
+hist(abs(interactionsTable0$regScoreNormDiff[interactionsTable0$gene %in% tfTested$V1]),breaks = 20,
+     main = "Histogram of NIS differences with aging",
+     xlab = "Normalised interaction score (NIS) differences between TFs with aging")
+
+table(abs(na.exclude(interactionsTable0[interactionsTable0$gene %in% tfTested$V1,"regScoreNormDiff"]))>0.4)/length(na.exclude(interactionsTable0[interactionsTable0$gene %in% tfTested$V1,"regScoreNormDiff"]))
+```
+
+```{r fig.height=2,fig.width=3.5}
+rownames(regScoreNormDiffData) <- str_split_fixed(regScoreNormDiffData$interaction,"_1",2)[,1] # there are only activation
+rownames(regScoreNormDiffData) <- gsub(rownames(regScoreNormDiffData),pattern = "_",replacement = "->")
+regScoreNormDiffData$interaction <- rownames(regScoreNormDiffData)
+
+CebpaReg <- melt(regScoreNormDiffData[c("Spi1->Cebpa","Gata2->Cebpa"),c("interaction","regScoreNorm_old","regScoreNorm_young","regScoreNorm")])
+CebpaReg$interaction <- factor(CebpaReg$interaction,levels = c("Spi1->Cebpa","Gata2->Cebpa"))
+CebpaReg$model <- NA
+CebpaReg$model[CebpaReg$variable == "regScoreNorm"] <- "global"
+CebpaReg$model[CebpaReg$variable == "regScoreNorm_young"] <- "young"
+CebpaReg$model[CebpaReg$variable == "regScoreNorm_old"] <- "old"
+
+CebpaReg$model <- factor(CebpaReg$model,levels = c("young","old","global"))
+ggplot(CebpaReg,
+       aes(y=value,x = interaction,fill = model)) + 
+  geom_bar(stat="identity", position =position_dodge()) + 
+  ylab(label = "Score") +
+  coord_flip() + 
+  scale_fill_manual(values = c(colorAge,"grey")) 
+```
+
+
+
+
+## Variation in attractor proportion with aging
+
+```{r}
+
+seurat <- readRDS("../../herault_et_al/scHSC_herault/report/seurat_report.rds")
+seurat@meta.data$observation <- "others"
+seurat@meta.data[rownames(seuratObs@meta.data),"observation"] <- as.character(seuratObs@meta.data[,"observation"])
+seurat$observation <- factor(seurat$observation,
+                              levels = c("others","iHSC","srHSC","qHSC","ifnHSC","preDiff","pLymph","pNeuMast","pMk","pEr"))
+
+clusterAge <- ddply(seurat@meta.data,~observation + AGE,nrow)
+#clusterAge$observation <- factor(paste("  ",clusterAge$observation,sep = ""),
+#                              levels = paste("  ",levels(seurat$observation),sep = ""))
+
+clusterAge$observation <- factor(clusterAge$observation,
+                              levels = c("others","iHSC","srHSC","qHSC","ifnHSC","preDiff","pLymph","pNeuMast","pMk","pEr"))
+
+propExpect <- table(seurat@meta.data$AGE)/length(seurat@meta.data$AGE)[]
+propYoungExp <- propExpect[[unique(seurat@meta.data$AGE)[1]]]
+
+clusterAge$AGE <- factor(clusterAge$AGE , levels = c("Aged","Young")) 
+
+
+age <- ggplot(data.frame(clusterAge), aes(fill = AGE,y = V1, x=observation,levels = "Young","Aged")) +
+  geom_bar( stat="identity", position="fill")+
+  scale_fill_manual( values= rev(colorAge))+
+  scale_y_continuous(name = "Age (%)", labels = c(0,25,50,75,100))+
+  ylab(label = "")+xlab(label = "") + 
+  coord_flip() + 
+  geom_hline(yintercept = propYoungExp)+
+  theme(legend.title=element_blank()) + 
+  labs(fill = "age:")+
+  scale_fill_manual(values = colorAge)+ 
+  scale_y_continuous( labels = c("0%","25%","50%","75%","100%"))
+
+ageEnrich <- getEnrichAge(seurat,clustCol ="observation",metaCol = "AGE") 
+
+ageEnrich <- as.data.frame(t(ageEnrich))
+ageEnrich$color <- "black"
+ageEnrich[which(as.numeric(as.vector(ageEnrich$phyper)) < 0.05 & ageEnrich$enrich == "Young"),"color"] <- colorAge[1]
+ageEnrich[which(as.numeric(as.vector(ageEnrich$phyper)) < 0.05 & ageEnrich$enrich == "Aged"),"color"] <-colorAge[2]
+
+legendBoxSize = 5
+
+age <- age + 
+  theme(axis.text.y = element_text(colour = ageEnrich[,'color'])) +
+  scale_fill_discrete(breaks=c("Young","Old")) +
+  scale_fill_manual( values= rev(colorAge))+
+  guides(colour = guide_legend(override.aes = list(size=legendBoxSize)))
+
+#adding barplot count
+
+clusterCount <- ggplot(data.frame(clusterAge), aes(y = log10(V1), x=observation)) +
+  theme(axis.title.y = element_blank(),axis.text.y = element_blank()) +
+  geom_bar(stat = "identity") + 
+  ylab(label = "log10(Cell number)") +
+  coord_flip() 
+
+grid2bClust <- arrangeGrob(ggplotGrob(age+ NoLegend() ),
+                           ggplotGrob(clusterCount),
+                           g_legend(age,"vertical"),
+                           widths = c(3,1.5,0.5))
+
+grid.arrange(grid2bClust)
+
+
+```
+```{r fig.width=3,fig.height=1.5}
+bp <- list()
+for (o in clusterAge$observation) {
+
+bp[[o]] <-  ggplot(data.frame(clusterAge[clusterAge$observation == o,]), aes(fill = AGE,y = V1, x=observation)) +
+  geom_bar( stat="identity", position="fill")+
+  scale_fill_manual( values= rev(colorAge))+
+  scale_y_continuous(name = "Age (%)", labels = c(0,25,50,75,100))+
+  ylab(label = "")+xlab(label = "") + 
+  coord_flip() + 
+  geom_hline(yintercept = propYoungExp,size = 1)+
+  theme(legend.title=element_blank()) + 
+  labs(fill = "age:")+
+  scale_fill_manual(values = rev(colorAge))+ 
+  facet_wrap(~ observation)  +
+  scale_y_continuous( labels = c("0%","25%","50%","75%","100%")) + theme_void() + NoLegend()
+}
+  
+grid.arrange(bp$iHSC,bp$pLymph,bp$pNeuMast,bp$qHSC,bp$preDiff, bp$pEr,bp$srHSC,bp$ifnHSC,bp$pMk,ncol=3)
+
+```
+
+
+
+```{r}
+# 
+# seuratObs2 <- subset(seuratObs,ident= "ifnHSC",invert = T)
+# clusterAge <- ddply(seuratObs2@meta.data,~observation + AGE,nrow)
+# #clusterAge$observation <- factor(paste("  ",clusterAge$observation,sep = ""),
+# #                              levels = paste("  ",levels(seuratObs2$observation),sep = ""))
+# 
+# clusterAge$observation <- factor(clusterAge$observation,
+#                               levels = c("others","iHSC","srHSC","qHSC","ifnHSC","preDiff","pLymph","pNeuMast","pMk","pEr"))
+# 
+# propExpect <- table(seuratObs2@meta.data$AGE)/length(seuratObs2@meta.data$AGE)[]
+# propYoungExp <- propExpect[[unique(seuratObs2@meta.data$AGE)[1]]]
+# 
+# clusterAge$AGE <- factor(clusterAge$AGE , levels = c("Aged","Young")) 
+# 
+# 
+# age <- ggplot(data.frame(clusterAge), aes(fill = AGE,y = V1, x=observation,levels = "Young","Aged")) +
+#   geom_bar( stat="identity", position="fill")+
+#   scale_fill_manual( values= rev(colorAge))+
+#   scale_y_continuous(name = "Age (%)", labels = c(0,25,50,75,100))+
+#   ylab(label = "")+xlab(label = "") + 
+#   coord_flip() + 
+#   geom_hline(yintercept = propYoungExp)+
+#   theme(legend.title=element_blank()) + 
+#   labs(fill = "age:")+
+#   scale_fill_manual(values = colorAge)+ 
+#   scale_y_continuous( labels = c("0%","25%","50%","75%","100%"))
+# 
+# ageEnrich <- getEnrichAge(seuratObs2,clustCol ="observation",metaCol = "AGE") 
+# 
+# ageEnrich <- as.data.frame(t(ageEnrich))
+# ageEnrich$color <- "black"
+# ageEnrich[which(as.numeric(as.vector(ageEnrich$phyper)) < 0.05 & ageEnrich$enrich == "Young"),"color"] <- colorAge[1]
+# ageEnrich[which(as.numeric(as.vector(ageEnrich$phyper)) < 0.05 & ageEnrich$enrich == "Aged"),"color"] <-colorAge[2]
+# 
+# legendBoxSize = 5
+# 
+# age <- age + 
+#   theme(axis.text.y = element_text(colour = ageEnrich[,'color'])) +
+#   scale_fill_discrete(breaks=c("Young","Old")) +
+#   scale_fill_manual( values= rev(colorAge))+
+#   guides(colour = guide_legend(override.aes = list(size=legendBoxSize)))
+# 
+# #adding barplot count
+# 
+# clusterCount <- ggplot(data.frame(clusterAge), aes(y = log10(V1), x=observation)) +
+#   theme(axis.title.y = element_blank(),axis.text.y = element_blank()) +
+#   geom_bar(stat = "identity") + 
+#   ylab(label = "log10(Cell number)") +
+#   coord_flip() 
+# 
+# grid2bClust <- arrangeGrob(ggplotGrob(age+ NoLegend() ),
+#                            ggplotGrob(clusterCount),
+#                            g_legend(age,"vertical"),
+#                            widths = c(3,1.5,0.5))
+# 
+# grid.arrange(grid2bClust)
+
+```
+
+```{r fig.width=3.5,fig.height=2}
+# attractors <- subset(seuratObs,ident = c("pEr","pMk","pNeuMast","pLymph"))
+# clusterAge <- ddply(attractors@meta.data,~observation + AGE,nrow)
+# clusterAge$observation <- factor(paste("  ",clusterAge$observation,sep = ""),
+#                               levels = paste("  ",levels(attractors$observation),sep = ""))
+# 
+# propExpect <- table(attractors@meta.data$AGE)/length(attractors@meta.data$AGE)[]
+# propYoungExp <- propExpect[[unique(attractors@meta.data$AGE)[1]]]
+# 
+# clusterAge$AGE <- factor(clusterAge$AGE , levels = c("Aged","Young")) 
+seurat@meta.data$observation <- "nonPrimed"
+seurat@meta.data[rownames(seuratObs@meta.data),"observation"] <- as.character(seuratObs@meta.data[,"observation"])
+seurat@meta.data$observation[!seurat@meta.data$observation %in% c("pEr","pLymph","pMk","pNeuMast","preDiff")] <- "nonPrimed"
+
+seurat$observation <- factor(seurat$observation,
+                              levels = c("nonPrimed","pLymph","pNeuMast","pMk","pEr","preDiff"))
+
+clusterAge <- ddply(seurat@meta.data,~observation + AGE,nrow)
+#clusterAge$observation <- factor(paste("  ",clusterAge$observation,sep = ""),
+#                              levels = paste("  ",levels(seurat$observation),sep = ""))
+
+clusterAge$observation <- factor(clusterAge$observation,
+                              levels = c("nonPrimed","pLymph","pNeuMast","pMk","pEr","preDiff"))
+
+propExpect <- table(seurat@meta.data$AGE)/length(seurat@meta.data$AGE)[]
+propYoungExp <- propExpect[[unique(seurat@meta.data$AGE)[1]]]
+
+clusterAge$AGE <- factor(clusterAge$AGE , levels = c("Aged","Young")) 
+
+
+bp <- list()
+for (o in clusterAge$observation) {
+
+bp[[o]] <-  ggplot(data.frame(clusterAge[clusterAge$observation == o,]), aes(fill = AGE,y = V1, x=observation)) +
+  geom_bar( stat="identity", position="fill")+
+  scale_fill_manual( values= rev(colorAge))+
+  scale_y_continuous(name = "Age (%)", labels = c(0,25,50,75,100))+
+  ylab(label = "")+xlab(label = "") + 
+  coord_flip() + 
+  geom_hline(yintercept = propYoungExp)+
+  theme(legend.title=element_blank()) + 
+  labs(fill = "age:")+
+  scale_fill_manual(values = rev(colorAge))+ 
+  facet_wrap(~ observation)  +
+  scale_y_continuous( labels = c("0%","25%","50%","75%","100%")) + theme_void() + NoLegend()
+}
+  
+grid.arrange(blank,bp$pLymph,bp$pNeuMast,bp$nonPrimed,bp$preDiff, bp$pEr,blank,blank,bp$pMk,ncol=3)
+```
+
+
+## Link to pathways
+```{r}
+# selectedTF <- c("Egr1","Junb","Myc","Gata2","Spi1","Bclaf1","Cebpa","Tal1","Ikzf1","Fli1","Klf1","Zfpm1",CDK46CycDGenes,CIPKIPGenes)
+# #write.table(selectedTF,"../input/selectedTF.txt",sep = "\t")
+# library(progeny)
+# prgData <- get("model_mouse_full", envir = .GlobalEnv)
+# prgData <- prgData[order(prgData$pathway,prgData$p.value,decreasing = c(T,F)),]
+# prgData[prgData$gene %in% selectedTF & prgData$p.value < 0.05 & abs(prgData$weight) > 2,]
+
+```
+
+
+
+
