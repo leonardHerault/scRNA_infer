@@ -84,7 +84,7 @@ names(colorObs) <- c("iHSC","srHSC","qHSC","ifnHSC","preDiff","pLymph","pNeuMast
 
 
 
-## Table for interactions table retained for influence graph
+## Table for retained interactions for influence graph
 
 Add normalised grnboost2 importance score.
 
@@ -256,7 +256,7 @@ ggVennDiagram(list(Scenic= interactionScenic,
 
 ```{r}
 seuratObs$platform <- str_split_fixed(seuratObs$sampleName,"_",2)[,2]
-
+source("../R_src/computeDiffFun.R")
 agingRegulonPerObs<- lapply(names(colorObs),
                             FindAgingMarkers4,
                             seuratObs,
@@ -268,13 +268,37 @@ agingRegulonPerObs<- lapply(names(colorObs),
                             min.pct = 0.1,
                             filterOnPadj = F)
 
-
+FindAgingMarkers4(hspc.combined = seuratObs,identCol = "observation",
+                            test.use = "wilcox",
+                            keepDiverging= T,
+                            logfc.threshold = 0,
+                            pseudocount.use = 1,
+                            min.pct = 0.1,
+                            filterOnPadj = F,cluster = "iHSC")
 
 
 agingRegulonPerObsTable <- agingRegulonPerObs[[1]]
 for (s in c(2:length(agingRegulonPerObs))) {
   agingRegulonPerObsTable <- rbind(agingRegulonPerObsTable,agingRegulonPerObs[[s]])
 }
+# 
+# seuratObs$cluster.AGE <- paste(seuratObs@meta.data[,"observation"],
+#                                      seuratObs@meta.data[,"AGE"], sep = "_")
+# Idents(object = seuratObs) <- "cluster.AGE"
+# 
+#   
+# 
+# test <- FindConservedMarkers(seuratObs,
+#                              assay = DefaultAssay(seuratObs),
+#                              grouping.var = "platform",
+#                              test.use="wilcox",
+#                              ident.1 = paste0("iHSC","_Aged"),
+#                              ident.2 = paste0("iHSC","_Young"),
+#                              pseudocount.use = 1,
+#                              min.pct = 0.1,
+#                              logfc.threshold = 0
+# )
+
 
 dim(agingRegulonPerObsTable)
 
@@ -329,12 +353,16 @@ agingRegulonPerObsTable <- agingRegulonPerObsTable[which(abs(agingRegulonPerObsT
 
 write.table(agingRegulonPerObsTable,"tables/regulonPopulationAgingMarker.tsv",sep = "\t",quote = F,row.names = F)
 ```
-```{r}
+```{r fig.width=3,fig.height=2} 
 
 data <- ddply(agingRegulonPerObsTable,~observation + sign(min_avg_diff),nrow)
 colnames(data) <- c("observation","sign","count")
+
+data$sens <- "Up"
+data$sens[data$sign == -1] <- "Down"
+
 data$observation <- factor(data$observation,levels = rev(names(colorObs)))
-ggplot(data = data,aes(y=count,fill=observation,x = sign)) +
+ggplot(data = data,aes(y=count,fill=observation,x = sens,width=.75)) +
   geom_bar(width = 1, stat = "identity") +
   scale_fill_manual(values = rev(colorObs))
 

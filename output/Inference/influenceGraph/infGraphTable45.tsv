@@ -1,0 +1,61 @@
+tf	mor	target	ref	interaction_proof_level	cell_line	cell_type_tissue	Trusted	Scenic	cistromeAdjScore	interaction0
+Bclaf1	1	CDK46CycD	NA	NA	NA	NA	0	TRUE	NA	Bclaf1_CDK46CycD
+Bclaf1	1	Bclaf1	NA	NA	NA	NA	0	TRUE	NA	Bclaf1_Bclaf1
+Bclaf1	1	Myc	NA	NA	NA	NA	0	TRUE	NA	Bclaf1_Myc
+Bclaf1	1	Cebpa	NA	NA	NA	NA	0	TRUE	NA	Bclaf1_Cebpa
+Cebpa	1	Gata2	NA	NA	NA	NA	0	TRUE	0.277	Cebpa_Gata2
+Cebpa	1	Myc	NA	NA	NA	NA	0	TRUE	2.98283333333333	Cebpa_Myc
+Egr1	1	Junb	NA	NA	NA	NA	0	TRUE	0.00775	Egr1_Junb
+Egr1	1	Egr1	NA	NA	NA	NA	0	TRUE	0.1215	Egr1_Egr1
+Egr1	1	Gata2	NA	NA	NA	NA	0	TRUE	0	Egr1_Gata2
+Egr1	1	CIPKIP	NA	NA	NA	NA	0	TRUE	0	Egr1_CIPKIP
+Fli1	1	Fli1	NA	NA	NA	NA	0	TRUE	0.1435	Fli1_Fli1
+Fli1	1	Zfpm1	NA	NA	NA	NA	0	TRUE	0.0336666666666667	Fli1_Zfpm1
+Gata1	1	Klf1	Crossley_1994;Krumsiek_2011	transcriptionnal regulation	MEL		1	TRUE	3.2432	Gata1_Klf1
+Gata1	1	Gata1	Tsai_1991;Krumsiek_2011	transcriptionnal_regulation	MEL		1	TRUE	2.5386	Gata1_Gata1
+Gata2	1	Ikzf1	Malinge_2013	transcriptionnal regulation	G1ME 		1	TRUE	0.3703	Gata2_Ikzf1
+Gata2	1	Zfpm1	NA	NA	NA	NA	0	TRUE	3.9	Gata2_Zfpm1
+Gata2	1	Fli1	NA	NA	NA	NA	0	TRUE	0.6605	Gata2_Fli1
+Gata2	1	Cebpa	Cooper_2015	transcriptionnal regulation (+37 kb enhancer bound by several factors including Gata2)		32Dcl3	0	TRUE	0.0102	Gata2_Cebpa
+Gata2	1	Egr1	NA	NA	NA	NA	0	TRUE	0.1083	Gata2_Egr1
+Gata2	1	Tal1	NA	NA	NA	NA	0	TRUE	3.9424	Gata2_Tal1
+Gata2	1	Gata2	Grass_2003;Krumsiek_2011	transcriptionnal regulation		HSC	1	TRUE	0.275	Gata2_Gata2
+Ikzf1	1	Ikzf1	NA	NA	NA	NA	0	TRUE	NA	Ikzf1_Ikzf1
+Junb	1	Gata2	NA	NA	NA	NA	0	TRUE	0.00741666666666667	Junb_Gata2
+Junb	1	CDK46CycD	NA	NA	NA	NA	0	TRUE	0	Junb_CDK46CycD
+Junb	1	Egr1	NA	NA	NA	NA	0	TRUE	0.6795	Junb_Egr1
+Junb	1	Junb	NA	NA	NA	NA	0	TRUE	0.0804166666666667	Junb_Junb
+Junb	1	Fli1	NA	NA	NA	NA	0	TRUE	0.0499166666666667	Junb_Fli1
+Junb	1	Myc	NA	NA	NA	NA	0	TRUE	0	Junb_Myc
+Junb	1	CIPKIP	NA	NA	NA	NA	0	TRUE	2.49	Junb_CIPKIP
+Klf1	1	Gata1	NA	NA	NA	NA	0	TRUE	NA	Klf1_Gata1
+Klf1	-1	Fli1	Starck_2003;Krumsiek_2011	physical interaction	MEL		1	TRUE	NA	Klf1_Fli1
+Myc	1	Junb	NA	NA	NA	NA	0	TRUE	0.0894	Myc_Junb
+Myc	1	CDK46CycD	NA	NA	NA	NA	0	TRUE	0.0894	Myc_CDK46CycD
+Myc	1	Bclaf1	NA	NA	NA	NA	0	TRUE	1.3194	Myc_Bclaf1
+Myc	1	Myc	NA	NA	NA	NA	0	TRUE	0	Myc_Myc
+Myc	1	Cebpa	NA	NA	NA	NA	0	TRUE	1.7226	Myc_Cebpa
+Spi1	1	Cebpa	Cooper_2015	transcriptionnal regulation (+37 kb enhancer bound by several factors including Spi1)		32Dcl3	0	TRUE	0	Spi1_Cebpa
+Spi1	1	Myc	NA	NA	NA	NA	0	TRUE	2.36628070175439	Spi1_Myc
+Ikzf1	-1	Cebpa	Rao_2013	transcriptionnal regulation		Bone marrow under mast cell differentiation program	1	FALSE	NA	Ikzf1_Cebpa
+Gata1	-1	Cebpa	Laiosa_2006;Krumsiek_2011	downregulation (weak evidence)			0	FALSE	0	Gata1_Cebpa
+Tal1	-1	Cebpa	Laiosa_2006;Krumsiek_2011	downregulation (weak evidence)			0	FALSE	0	Tal1_Cebpa
+Zfpm1	-1	Cebpa	Chickarmane_2009;Laiosa_2006;Krumsiek_2011	Mathematical modelling prediction;downregulation (weak evidences)			0	FALSE	0.028	Zfpm1_Cebpa
+Cebpa	1	Cebpa	Cooper_2015;Timchenko_1995;Christy_1991;Krumsiek_2011	transcriptionnal regulation (+37 kb enhancer bound by several factors including Cebpa);no other evidence found in hematopoietic system;transcriptionnal regulation	Hep3B2;3T3-L1		0	FALSE	4.945	Cebpa_Cebpa
+Gata1	1	Fli1	Barbeau_1999;Krumsiek_2011	transcriptionnal regulation	HEL		1	FALSE	2.3216	Gata1_Fli1
+Ikzf1	-1	Gata1	Malinge_2013	KO, functionnal interaction			1	FALSE	NA	Ikzf1_Gata1
+Spi1	-1	Gata1	Zhang_2000;Krumsiek_2011	physical interaction	K562,G1ER		1	FALSE	0.457333333333333	Spi1_Gata1
+Gata2	1	Gata1	Onheda_2002;Krumsiek_2011	transcriptionnal_regulation		HSC,MPP	1	FALSE	0.4149	Gata2_Gata1
+Fli1	1	Gata1	Stark_2003;Krumsiek_2011	Physical interaction	MEL		1	FALSE	0	Fli1_Gata1
+Spi1	-1	Gata2	Walsh_2002;Krumsiek_2011	KO, possible transcriptionnal regulation		MPP	1	FALSE	0.00210526315789474	Spi1_Gata2
+Gata1	-1	Gata2	Grass_2003;Onheda_2002;Krumsiek_2011	transcriptionnal regulation		MEP	1	FALSE	0.353066666666667	Gata1_Gata2
+Zfpm1	-1	Gata2	Onheda_2002;Tsang_1998;Krumsiek_2011	KO (Gata1 cofactor)		HSC	1	FALSE	0.139	Zfpm1_Gata2
+Gata1	-1	Ikzf1	Malinge_2013	transcriptionnal regulation	G1ME 	terminal megakaryocytic maturation 	0	FALSE	0.00273333333333333	Gata1_Ikzf1
+Fli1	-1	Klf1	Starck_2003;Krumsiek_2011	physical interaction	MEL		1	FALSE	0.138	Fli1_Klf1
+Spi1	1	Spi1	Leddin_2011;Krumsiek_2011	transcriptionnal interaction		B cells,myeolid cells	1	FALSE	0.194649122807018	Spi1_Spi1
+Gata2	-1	Spi1	Chou_2009;Krumsiek_2011	KD	G1ME 	(MEP)	1	FALSE	2.9085	Gata2_Spi1
+Gata1	-1	Spi1	Chou_2009;Krumsiek_2011	transcriptionnal regulation	G1ME 	(MEP)	1	FALSE	0.987333333333333	Gata1_Spi1
+Cebpa	1	Spi1	Yeamans_2007;Friedman_2007;Krumsiek_2011	KO,transcriptionnal regulation		CMP	1	FALSE	5.44316666666667	Cebpa_Spi1
+Spi1	-1	Tal1	Le Clech_2006;Krumsiek_2011	Transcriptionnal regulation	HEL,HL60		1	FALSE	2.35533333333333	Spi1_Tal1
+Gata1	1	Tal1	Bockamp_1995;Krumsiek_2011	transcriptionnal regulation	MEL		1	FALSE	4.03306666666667	Gata1_Tal1
+Gata1	1	Zfpm1	Iwasaki 2003;Krumsiek_2011	Gata1 transduction		CLP/GMP	1	FALSE	3.84193333333333	Gata1_Zfpm1

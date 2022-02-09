@@ -139,6 +139,16 @@ pData(monocle)[colnames(monocle),"observation"] <- seurat@meta.data[colnames(mon
 pData(monocle)[colnames(monocle),"isObs"] <- seurat@meta.data[colnames(monocle),"isObs"] 
 
 ```
+## Table HSPC states
+```{r}
+hspcStateTable <- cbind(table(seurat@meta.data[colnames(monocle),"observation"]),
+      table(seurat@meta.data[colnames(monocle),"observation"])*100/ncol(seurat))[names(colorObs),]
+write.csv(hspcStateTable,"tables/hspcStates.csv",row.names = T,quote = F)
+hspcStateTable
+sum(hspcStateTable[,1])
+sum(hspcStateTable[,2])
+
+```
 
 ##Trajectory plots
 ```{r, fig.height=3,fig.width=6}
