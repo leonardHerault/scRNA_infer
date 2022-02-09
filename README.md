@@ -6,9 +6,7 @@
 We previously analyzed 15 000 transcriptomes of mouse hematopoietic stem and
 progenitor cells (HSPCs) from young and aged mice and characterized the early
 differentiation of the hematopoietic stem cells (HSCs) according to age, thanks to cell
-clustering and pseudotime analysis 1
-
-. In this study, we propose an original strategy to build
+clustering and pseudotime analysis. In this study, we propose an original strategy to build
 a Boolean gene network explaining HSC priming and homeostasis based on our previous
 single cell data analysis and the actual knowledge of these biological processes (graphical
 abstract).
