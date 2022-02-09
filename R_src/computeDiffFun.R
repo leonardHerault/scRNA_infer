@@ -69,6 +69,7 @@ FindAgingMarkers4 <- function(cluster,
                               identCol = "numclust",
                               pseudocount.use = 1) {
   
+
   hspc.combined$cluster.AGE <- paste(hspc.combined@meta.data[,identCol],
                                      hspc.combined@meta.data[,"AGE"], sep = "_")
   Idents(object = hspc.combined) <- "cluster.AGE"
@@ -86,6 +87,12 @@ FindAgingMarkers4 <- function(cluster,
                                        logfc.threshold = logfc.threshold,
                                        max.cells.per.ident = max.cells.per.ident
   )
+  
+  if(packageVersion("Seurat")> 4) {
+    print("renaming columns as in seurat3")
+    colnames(agingMarkers)[endsWith(x = colnames(agingMarkers),suffix = "FC")] <- gsub(x = colnames(agingMarkers)[endsWith(x = colnames(agingMarkers),suffix = "FC")],pattern = "log2",replacement = "log" )
+  }
+  
   print(dim(agingMarkers))
   #Add a column the min abs(logFC) 
   agingMarkers$min_avg_logFC <- NA
