@@ -55,7 +55,7 @@
     time : "6-12:00:00"
     name : "{rule}"
     partition : "long"
-    account : "scRNA_HSPC_Aging"
+    account : "XXXX"
     mem : "200000"
     output : "cluster/snakemake/{rule}.output"
     error : "cluster/snakemake/{rule}.error"
