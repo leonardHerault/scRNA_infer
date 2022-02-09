@@ -43,7 +43,7 @@ Mouse TF experiment bed files need to be download from [citrome database](http:/
 **This workflow is still under development until the manuscript submission and some files are deprecated.**
 
 We provide in this repository the snakemake workflow (Snakefile.py) and its configuration (config/scRNA_infer.yml) we developped to infer a gene boolean network from our previous analysed the single cell RNA seq data.
-It uses [pySCENIC](https://pyscenic.readthedocs.io/en/latest/) command line tools to infer regulons activities in our data. We used [Bonesis](https://github.com/bioasp/bonesis.git) to obtain the possible with out dynamical constraints 
+It uses [pySCENIC](https://pyscenic.readthedocs.io/en/latest/) command line tools to infer regulons activities in our data. We used [Bonesis](https://github.com/bioasp/bonesis.git) to obtain the possible model solutions with our dynamical constraints 
 
 See the material and method section of our manuscript for more details.
 
@@ -60,7 +60,7 @@ It can be launched as follow:
 
 ## Installation
 
-This snakemake workflow work with conda on Linux.
+This snakemake workflow works with conda on Linux.
 You need first to download and install [conda with python version 3.7](https://docs.conda.io/en/latest/miniconda.html).
 Then once you have downloaded the repository, you can create the snakemake environment with:
 
