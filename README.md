@@ -1,5 +1,5 @@
 
-# Single-cell RNA-seq assisted synthesis of a Boolean network to model early hematopoiesis aging
+# A novel Boolean network inference strategy to model early hematopoiesis aging
 ***Leonard Herault***
 
 ## Abstract
