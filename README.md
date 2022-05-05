@@ -11,7 +11,7 @@ Our work shows the efficiency of the combination of manual and systematic method
 
 ## Availabilty of data
 
-The single-cell RNA-seq data used in our study are available in the Gene Expression Omnibus database under accession code GSE147729. The workflow is based on the results of our previous work [Hérault et al, 2021](https://bmcbiol.biomedcentral.com/articles/10.1186/s12915-021-00955-z) so the workflow from Herault et al, 2021 should be run first. Mouse TF experiment bed files should be downloaded from [citrome database](http://cistrome.org/db/#/) (available under request) and untar as input/mouse_factor.
+The single-cell RNA-seq data used in our study are available in the Gene Expression Omnibus database under accession code GSE147729. The workflow is based on the results of our previous work [Hérault et al, 2021](https://bmcbiol.biomedcentral.com/articles/10.1186/s12915-021-00955-z) so the workflow from Herault et al, 2021 should be run first. Mouse TF experiment bed files should be downloaded from [citrome database](http://cistrome.org/db/#/) (available under request) and unarchived as input/mouse_factor.
 
 ## Analysis and script
 
