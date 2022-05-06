@@ -24,7 +24,16 @@ The final jupyter notebook (included in the workflow) with the model analysis in
     *output/Inference/obsDataDis.csv
     *output/Inference/bonesis/possible_final_solutions.p
     
-It can be launched as follow:   
+Bonesis environment used in this study can be installed as follow:
+
+    conda env create -f config/bonesis_env2.yml -n bonesis_env
+    conda activate bonesis_env
+    cd config/
+    git clone https://github.com/bioasp/bonesis.git
+    cd bonesis
+    pip install --user -e .;
+    
+jupyter notebook can be launched as follow:   
 
     jupyter nbconvert --ExecutePreprocessor.timeout=1000000 --to HTML --execute report/reportBonesis.ipynb
 
