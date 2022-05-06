@@ -13,7 +13,7 @@
 
   #dorothea_env: "config/dorothea_env.yml"
   
-  bonesis_env: "config/bonesis_env.yml"
+  bonesis_env: "config/bonesis_env2.yml"
   
   reportInf_env: "config/reportInference.yml"
   
