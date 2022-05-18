@@ -424,16 +424,27 @@ youngInt <- onlyYoungReg[onlyYoungReg$gene %in% tfTested$V1,"interaction"]
 agedInt <- onlyOldReg[onlyOldReg$gene %in% tfTested$V1,"interaction"]
 allInt <- interactionsTable0[interactionsTable0$gene %in% tfTested$V1,"interaction"]
 
-ggVennDiagram(list(all= allInt,
-          aged = agedInt,
-          young = youngInt))
 
-ggVennDiagram(list(all= allInt,
-          aged = agedInt[agedInt %in% allInt],
-          young = youngInt[youngInt %in% allInt]))
+
+pieList <- list(onlyAll = length(which(!(allInt %in% agedInt) & !(allInt %in% youngInt))),
+        allAndAged = length(which((allInt %in% agedInt) & !(allInt %in% youngInt))),
+        young = length(which((allInt %in% youngInt) & !(allInt %in% agedInt))),
+        allRuns = length(which((allInt %in% youngInt) & (allInt %in% agedInt))))
+     
+     
+pie(unlist(pieList),labels = c("All cells only",
+                               "All and aged cells only",
+                               "All and young cells only",
+                               "Three sets"),
+    col = c("white",rev(colorAge),"grey"))
 
 
 ```
+
+
+
+
+
 ```{r}
 selectedTF <- c("Egr1","Junb","Bclaf1","Myc","Fli1","Gata2","Spi1","Cebpa","Gata1","Klf1","Tal1","Ikzf1","Zfpm1")
 CDK46CycDGenes <- c("Ccnd1","Ccnd2","Ccnd3","Cdk4","Cdk6")
@@ -590,76 +601,9 @@ grid.arrange(bp$iHSC,bp$pLymph,bp$pNeuMast,bp$qHSC,bp$preDiff, bp$pEr,bp$srHSC,b
 
 
 
-```{r}
-# 
-# seuratObs2 <- subset(seuratObs,ident= "ifnHSC",invert = T)
-# clusterAge <- ddply(seuratObs2@meta.data,~observation + AGE,nrow)
-# #clusterAge$observation <- factor(paste("  ",clusterAge$observation,sep = ""),
-# #                              levels = paste("  ",levels(seuratObs2$observation),sep = ""))
-# 
-# clusterAge$observation <- factor(clusterAge$observation,
-#                               levels = c("others","iHSC","srHSC","qHSC","ifnHSC","preDiff","pLymph","pNeuMast","pMk","pEr"))
-# 
-# propExpect <- table(seuratObs2@meta.data$AGE)/length(seuratObs2@meta.data$AGE)[]
-# propYoungExp <- propExpect[[unique(seuratObs2@meta.data$AGE)[1]]]
-# 
-# clusterAge$AGE <- factor(clusterAge$AGE , levels = c("Aged","Young")) 
-# 
-# 
-# age <- ggplot(data.frame(clusterAge), aes(fill = AGE,y = V1, x=observation,levels = "Young","Aged")) +
-#   geom_bar( stat="identity", position="fill")+
-#   scale_fill_manual( values= rev(colorAge))+
-#   scale_y_continuous(name = "Age (%)", labels = c(0,25,50,75,100))+
-#   ylab(label = "")+xlab(label = "") + 
-#   coord_flip() + 
-#   geom_hline(yintercept = propYoungExp)+
-#   theme(legend.title=element_blank()) + 
-#   labs(fill = "age:")+
-#   scale_fill_manual(values = colorAge)+ 
-#   scale_y_continuous( labels = c("0%","25%","50%","75%","100%"))
-# 
-# ageEnrich <- getEnrichAge(seuratObs2,clustCol ="observation",metaCol = "AGE") 
-# 
-# ageEnrich <- as.data.frame(t(ageEnrich))
-# ageEnrich$color <- "black"
-# ageEnrich[which(as.numeric(as.vector(ageEnrich$phyper)) < 0.05 & ageEnrich$enrich == "Young"),"color"] <- colorAge[1]
-# ageEnrich[which(as.numeric(as.vector(ageEnrich$phyper)) < 0.05 & ageEnrich$enrich == "Aged"),"color"] <-colorAge[2]
-# 
-# legendBoxSize = 5
-# 
-# age <- age + 
-#   theme(axis.text.y = element_text(colour = ageEnrich[,'color'])) +
-#   scale_fill_discrete(breaks=c("Young","Old")) +
-#   scale_fill_manual( values= rev(colorAge))+
-#   guides(colour = guide_legend(override.aes = list(size=legendBoxSize)))
-# 
-# #adding barplot count
-# 
-# clusterCount <- ggplot(data.frame(clusterAge), aes(y = log10(V1), x=observation)) +
-#   theme(axis.title.y = element_blank(),axis.text.y = element_blank()) +
-#   geom_bar(stat = "identity") + 
-#   ylab(label = "log10(Cell number)") +
-#   coord_flip() 
-# 
-# grid2bClust <- arrangeGrob(ggplotGrob(age+ NoLegend() ),
-#                            ggplotGrob(clusterCount),
-#                            g_legend(age,"vertical"),
-#                            widths = c(3,1.5,0.5))
-# 
-# grid.arrange(grid2bClust)
-
-```
 
 ```{r fig.width=3.5,fig.height=2}
-# attractors <- subset(seuratObs,ident = c("pEr","pMk","pNeuMast","pLymph"))
-# clusterAge <- ddply(attractors@meta.data,~observation + AGE,nrow)
-# clusterAge$observation <- factor(paste("  ",clusterAge$observation,sep = ""),
-#                               levels = paste("  ",levels(attractors$observation),sep = ""))
-# 
-# propExpect <- table(attractors@meta.data$AGE)/length(attractors@meta.data$AGE)[]
-# propYoungExp <- propExpect[[unique(attractors@meta.data$AGE)[1]]]
-# 
-# clusterAge$AGE <- factor(clusterAge$AGE , levels = c("Aged","Young")) 
+
 seurat@meta.data$observation <- "nonPrimed"
 seurat@meta.data[rownames(seuratObs@meta.data),"observation"] <- as.character(seuratObs@meta.data[,"observation"])
 seurat@meta.data$observation[!seurat@meta.data$observation %in% c("pEr","pLymph","pMk","pNeuMast","preDiff")] <- "nonPrimed"
@@ -701,15 +645,21 @@ grid.arrange(blank,bp$pLymph,bp$pNeuMast,bp$nonPrimed,bp$preDiff, bp$pEr,blank,b
 ```
 
 
-## Link to pathways
+## save metadata
 ```{r}
-# selectedTF <- c("Egr1","Junb","Myc","Gata2","Spi1","Bclaf1","Cebpa","Tal1","Ikzf1","Fli1","Klf1","Zfpm1",CDK46CycDGenes,CIPKIPGenes)
-# #write.table(selectedTF,"../input/selectedTF.txt",sep = "\t")
-# library(progeny)
-# prgData <- get("model_mouse_full", envir = .GlobalEnv)
-# prgData <- prgData[order(prgData$pathway,prgData$p.value,decreasing = c(T,F)),]
-# prgData[prgData$gene %in% selectedTF & prgData$p.value < 0.05 & abs(prgData$weight) > 2,]
+fields <- c("barcode","age","sampleName","phases","G1_score","G2M_score","S_score","AGE","numclust","HSC_Chambers","Bcell_Chambers","NK_Chambers","NaiveT_Chambers","Mono_Chambers","Gran_Chambers","N.er_Chambers","Diff_Chambers","Lymph_Chambers","Mye_Chambers","Mm_HSC_Runx1_Wu","Mm_HSC_Tcf7_Wu","Mm_HSC_Ivanova","Mm_HSC_Ramalho","HSC_Explorer","Mm_LT_HSC_Venezia","Mm_Proliferation_Venezia","Mm_Quiescence_Venezia","Mm_Adult_HSC_UP_Venezia","Polarity_factors_Ting","Novel_HSC_regul_polar_Ting","Svendsen","MGA_MEP","priming","platform","TMC","HEM","CAM","HLOD","MHC","AgingSvendsen","hscScore","Pseudotime","Monocle_state","HSPC_state")
 
+seurat@meta.data[,"Pseudotime"] <- NA
+seurat@meta.data[,"Monocle_state"] <- NA
+seurat@meta.data[,"HSPC_state"] <- NA
+seurat@meta.data[,"HSPC_state"] <- factor(seurat@meta.data[,"HSPC_state"] ,levels = levels(seuratObs$observation))
+seurat@meta.data[rownames(pData(monocle)),"Pseudotime"] <- pData(monocle)[rownames(pData(monocle)),"Pseudotime"]
+seurat@meta.data[rownames(pData(monocle)),"Monocle_state"] <- pData(monocle)[rownames(pData(monocle)),"State"]
+seurat@meta.data[rownames(seuratObs@meta.data),"HSPC_state"] <- seuratObs@meta.data[rownames(seuratObs@meta.data),"observation"] 
+
+
+
+write.csv(seurat@meta.data[,fields],"tables/sc_metada.csv",quote = F)
 ```
 
 
