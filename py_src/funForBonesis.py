@@ -13,7 +13,7 @@ import re
 import subprocess
 import numpy as np
 from matplotlib import pyplot as plt
-#import constraints
+
 
 def multiDiGraphToEdgeList(graph):
     edges = graph.edges(data=True)

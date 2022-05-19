@@ -14,9 +14,6 @@ report_env = config["reportInf_env"]
 
 
 
-#dca_env = config["dca_env"]
-#progeny_env = config["progeny_env"]
-#dorothea_env = config["dorothea_env"]
 ages = ["young","old"]
 
 scenicRuns = list(range(50))
@@ -102,13 +99,7 @@ rule all:
 
           #"output/Inference/bonesis/solutions.p"
     
-# rule getDataMatrixFromPreviousWork:
-#     input: inputDataDir+"/report/seurat_report.rds",
-#     output: "input/dataMatrix.csv"
-#     conda: seurat_monocle_env
-#     params: slot = "data"
-#     threads: 1
-#     shell: "Rscript R_src/getDataMatrixCL.R -i {input} -s {params.slot} -o input/"
+    
 rule prepare_data_for_stream_all:
   input: seurat = inputDataDir+"report/seurat_report.rds",
          monocle = inputDataDir+"report/monocle_report.rds",
@@ -253,37 +244,6 @@ rule creating_regulonTable:
     shell:
         "Rscript R_src/makeRegulonTableCL.R -o output/regulonAnalysis/ -t {params.tf_database} -r {input.main} -s {params.supp} -n {params.condName}"
 
-# rule analyseRegulonScore:
-#     input: seurat =  inputDataDir+"/report/seurat_report.rds",
-#            tfList = "input/selectedTF.txt",
-#            regulonScore =  "output/ScenicRNA_multipleRuns/AUCell_maskDropouts/regulons_enrichment.csv"
-#     output: "output/regulonAnalysis/clusterMarkerRegulonTable.tsv"
-#     params: scoreDiff = config["regulonAnalysis"]["scoreDiff"]
-#     conda: seurat_monocle_env
-#     shell:
-#       "Rscript R_src/regulonMarkerCL.R -i {input.seurat} -t {input.tfList} \
-#       -r {input.regulonScore} -o output/regulonAnalysis/ -c -a AGE"
-
-# rule makeInfluenceGraphAll:
-#     input: tfList = "input/selectedTF.txt",
-#            regulonTable = "output/regulonAnalysis/mainRegulonTable.tsv"
-#     output: "output/regulonAnalysis/infGraphTable.tsv"
-#     params: recovTimesThreshold = config["regulonAnalysis"]["recovTimesThresholdforInfGraph"],
-#             biblioNet = "input/KrumsiekAdapted.reggraph+publicData/Bonzanni_2013.reggraph"
-#     conda: seurat_monocle_env
-#     shell: "Rscript R_src/makeInfluenceGraphCL.R -t {input.tfList} -r {input.regulonTable} \
-#     -o output/regulonAnalysis/ -c -b {params.biblioNet}"
-# 
-# rule makeInfluenceGraphTop:
-#     input: tfList = "input/selectedTF.txt",
-#            regulonTable = "output/regulonAnalysis/mainRegulonTable.tsv"
-#     output: "output/regulonAnalysis/infGraphTable50.tsv"
-#     params: recovTimesThreshold = config["regulonAnalysis"]["recovTimesThresholdforInfGraph"],
-#             biblioNet = "input/KrumsiekAdapted.reggraph"
-#     conda: seurat_monocle_env
-#     shell: "Rscript R_src/makeInfluenceGraphCL.R -t {input.tfList} -r {input.regulonTable} \
-#     -o output/regulonAnalysis/ -c -b {params.biblioNet} -v {params.recovTimesThreshold}"
-
 
 rule makeInfluenceGraph:
     input: tfList = "input/selectedTF.txt",
@@ -326,16 +286,7 @@ rule get_report_influence_graph_disctretization:
     shell: "echo $CONDA_DEFAULT_ENV;Rscript -e 'rmarkdown::render(\"{input[0]}\")'"
 ###################################################################################################################################
    
-# rule makeInfluenceGraphTrusted:
-#     input: tfList = "input/selectedTF_large.txt",
-#            regulonTable = "output/regulonAnalysis/mainRegulonTable.tsv",
-#            cistromeBeta = "output/Cistrome_BM/cistromeReg.tsv",
-#            interactionBiblio = "input/KrumsiekAdapted.txt"
-#     output: "output/Inference/infGraphLargeTrusted/infGraphTable45.tsv"
-#     params: recovTimesThreshold = config["regulonAnalysis"]["recovTimesThresholdforInfGraph"],
-#     conda: seurat_monocle_env
-#     shell: "Rscript R_src/makeInfluenceGraphCL.R -t {input.tfList} -r {input.regulonTable} \
-#     -o output/Inference/infGraphLargeTrusted/ -c -j {input.interactionBiblio} -a {input.cistromeBeta} -v 45"
+
 
 
 rule installBonesis:
@@ -344,38 +295,6 @@ rule installBonesis:
     conda: bonesis_env
     shell: 
       "cd config/;git clone {params.gitUrl};cd bonesis;pip install --user -e .;touch install_done"
-
-# rule bonesis:
-#     input: graph = "output/regulonAnalysis/infGraphTable50.tsv",
-#            obsData = "input/obsData.csv",
-#            install = "output/Inference/bonesis/install_done"
-#     output: "output/Inference/smallNet/solutions.p"
-#     conda: bonesis_env
-#     threads: 20
-#     shell: 
-#       "python py_src/inferSmallestMpbnExact.py -o output/Inference/smallNet -c {threads} -i {input.graph} -d {input.obsData}" 
-# 
-# rule bonesis_large:
-#     input: graph =  "output/Inference/infGraphLarge/infGraphTable45.tsv",
-#            obsData = "input/obsDataLarge.csv",
-#            install = "output/Inference/bonesis/install_done"
-#     output: "output/Inference/Net/solutions.p"
-#     conda: bonesis_env
-#     threads: 20
-#     shell: 
-#       "python py_src/inferSmallestMpbnExact.py -o output/Inference/Net -c {threads} -i {input.graph} -d {input.obsData}"
-# 
-# rule bonesis_large_test:
-#     input: graph =  "output/Inference/infGraphLarge/infGraphTable45.tsv",
-#            obsData = "report/obsDataPhenoMut.csv",
-#            install = "output/Inference/bonesis/install_done",
-#            constraints = "py_src/constraintsTest.py"
-#     output: "output/Inference/NetTest/solutions.p"
-#     conda: bonesis_env
-#     threads: 20
-#     shell:
-#       "cp {input.constraints} py_src/constraints.py; \
-#       python py_src/inferSmallestMpbnExact.py -o output/Inference/NetTest -c {threads} -i {input.graph} -d {input.obsData}" 
 
 
 rule bonesis_explore:
@@ -388,27 +307,6 @@ rule bonesis_explore:
     shell:
       "jupyter nbconvert --ExecutePreprocessor.timeout=1000000 --to HTML --execute output/Inference/bonesis/solution_space_first_exploration.ipynb"
 
-
-# rule bonesis_explore:
-#     input: graph =  "report/infGraphTable45_test0.tsv",
-#            obsData = "report/obsDataDis0.csv",
-#            install = "config/bonesis/install_done"
-#     output: "report/solution_space_first_exploration_test0.html"
-#     conda: bonesis_env
-#     threads: 24
-#     shell:
-#       "jupyter nbconvert --ExecutePreprocessor.timeout=1000000 --to HTML --execute report/solution_space_first_exploration_test0.ipynb"
-
-# rule bonesis_optimize:
-#     input: graph =  "report/infGraphTable45_test0.tsv",
-#            obsData = "report/obsDataDis0.csv",
-#            install = "config/bonesis/install_done"
-#     output: "report/optimization_final_sol_test0.html",
-#             "report/possible_final_solutions_test.p"
-#     conda: bonesis_env
-#     threads: 24
-#     shell:
-#       "jupyter nbconvert --ExecutePreprocessor.timeout=1000000 --to HTML --execute report/optimization_final_sol_test0.ipynb" 
       
 rule bonesis_optimize:
     input: graph =  "output/Inference/influenceGraph/infGraphTable45.tsv",
@@ -435,7 +333,7 @@ rule bonesis_final_solution:
       "jupyter nbconvert --ExecutePreprocessor.timeout=1000000 --to HTML --execute report/reportBonesis.ipynb" 
 
 ###################################################################################################################################
-#### Report seconda part
+#### Report second part
 rule get_final_report:
     input:"report/figures_part2.Rmd",
           "output/publicData/mm_mgi_tfs.txt",
@@ -491,20 +389,3 @@ rule BETA_score_aggregation:
    conda: seurat_monocle_env
    shell: "Rscript R_src/cistromeAnalysisCL.R -b output/Cistrome_BM/BETA/ -o output/Cistrome_BM/"
 
-###########################################################################################  
-
-# rule progeny:
-#     input: normData = "input/dataMatrix.csv"
-#     output: "output/progeny/rna/progeny_scores.tsv"
-#     conda: progeny_env
-#     threads:1
-#     shell: "Rscript R_src/progenyCL.R -i {input.normData} -o output/progeny/rna"
-  
-# rule get_reportProjet2:
-#     input:"output/ScenicRNA/AUCell/regulons_enrichment.csv",
-#           "output/ScenicRNA/AUCell_maskDropouts/regulons_enrichment.csv",
-#           "output/progeny/rna/progeny_scores.tsv",
-#           "output/ScenicRNA/tf_grn_regulons.csv",
-#           "output/ScenicRNA/tf_grn_regulons_maskDropouts.csv",
-#     output:"reportProjet2/report_final.html"
-#     shell: "touch {output}"
