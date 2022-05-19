@@ -39,7 +39,7 @@ The jupyter [notebook](report/reportBonesis.ipynb) can be launched as follow:
 
     jupyter nbconvert --ExecutePreprocessor.timeout=1000000 --to HTML --execute report/reportBonesis.ipynb
 
-With the same environment, you can also test our first exploration of the solution space with this [notebook](output/Inference/bonesis/regulatory_graph_optimization.ipynbsolution_space_exploration.ipynb) as well as our optimization of the solution search (inference graph pruning regarding the edge level of confidences) with this [notebook](output/Inference/bonesis/regulatory_graph_optimization.ipynb/regulatory_graph_optimization.ipynb).
+With the same environment, you can also test our first exploration of the solution space with this [notebook](output/Inference/bonesis/solution_space_first_exploration.ipynb) as well as our optimization of the solution search (inference graph pruning regarding the edge level of confidences) with this [notebook](output/Inference/bonesis/regulatory_graph_optimization.ipynb).
 
 ## Installation
 
