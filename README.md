@@ -13,6 +13,8 @@ Our work shows the efficiency of the combination of manual and systematic method
 
 The single-cell RNA-seq data used in our study are available in the Gene Expression Omnibus database under accession code GSE147729. The workflow is based on the results of our previous work [Hérault et al, 2021](https://bmcbiol.biomedcentral.com/articles/10.1186/s12915-021-00955-z) so the workflow from Herault et al, 2021 should be run first. Mouse TF experiment bed files should be downloaded from [citrome database](http://cistrome.org/db/#/) (available under request) and unarchived as input/mouse_factor.
 
+The metadata (Pseudotime, clustering, HSPC state) of our analysis are available [here](report/tables/sc_medata.csv) and can be use to quicqly investigate our results by combining them with the gene-cell expression matrix available on GEO.
+
 ## Analysis and script
 
 **This workflow is still under development until the manuscript submission and some files are deprecated.**
@@ -33,10 +35,11 @@ Bonesis environment used in this study can be installed as follow:
     cd bonesis
     pip install --user -e .;
     
-jupyter notebook can be launched as follow:   
+The jupyter [notebook](report/reportBonesis.ipynb) can be launched as follow:   
 
     jupyter nbconvert --ExecutePreprocessor.timeout=1000000 --to HTML --execute report/reportBonesis.ipynb
 
+With the same environment, you can also test our first exploration of the solution space with this [notebook](output/inference/bonesis/solution_space_exploration.ipynb) as well as our optimization of the solution search (inference graph pruning regarding the edge level of confidences) with this [notebook](output/inference/bonesis/regulatory_graph_optimization.ipynb).
 
 ## Installation
 
