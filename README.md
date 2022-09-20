@@ -30,10 +30,6 @@ Bonesis environment used in this study can be installed as follow:
 
     conda env create -f config/bonesis_env2.yml -n bonesis_env
     conda activate bonesis_env
-    cd config/
-    git clone https://github.com/bioasp/bonesis.git
-    cd bonesis
-    pip install --user -e .;
     
 The jupyter [notebook](report/reportBonesis.ipynb) can be launched as follow:   
 

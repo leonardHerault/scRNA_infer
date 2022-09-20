@@ -289,18 +289,18 @@ rule get_report_influence_graph_disctretization:
 
 
 
-rule installBonesis:
-    output: "config/bonesis/install_done"
-    params: gitUrl=config["bonesis"]["gitUrl"]
-    conda: bonesis_env
-    shell: 
-      "cd config/;git clone {params.gitUrl};cd bonesis;pip install --user -e .;touch install_done"
+# rule installBonesis:
+#     output: "config/bonesis/install_done"
+#     params: gitUrl=config["bonesis"]["gitUrl"]
+#     conda: bonesis_env
+#     shell: 
+#       "cd config/;git clone {params.gitUrl};cd bonesis;pip install --user -e .;touch install_done"
 
 
 rule bonesis_explore:
     input: graph =  "output/Inference/influenceGraph/infGraphTable45.tsv",
-           obsData = "output/Inference/obsDataDis.csv",
-           install = "config/bonesis/install_done"
+           #install = "config/bonesis/install_done"
+           obsData = "output/Inference/obsDataDis.csv"
     output: "output/Inference/bonesis/solution_space_first_exploration.html"
     conda: bonesis_env
     threads: 24
@@ -310,8 +310,8 @@ rule bonesis_explore:
       
 rule bonesis_optimize:
     input: graph =  "output/Inference/influenceGraph/infGraphTable45.tsv",
-           obsData = "output/Inference/obsDataDis.csv",
-           install = "config/bonesis/install_done"
+           #install = "config/bonesis/install_done"
+           obsData = "output/Inference/obsDataDis.csv"
     output: "output/Inference/bonesis/regulatory_graph_optimization.html",
             "output/Inference/bonesis/possible_final_solutions.p"
     conda: bonesis_env
@@ -321,8 +321,8 @@ rule bonesis_optimize:
 
 rule bonesis_final_solution:
     input: graph =  "output/Inference/influenceGraph/infGraphTable45.tsv",
-           obsData = "output/Inference/obsDataDis.csv",
-           install = "config/bonesis/install_done",
+           #install = "config/bonesis/install_done",
+           obsData = "output/Inference/obsDataDis.csv"
            sol = "output/Inference/bonesis/possible_final_solutions.p"
     output: "report/reportBonesis.html",
             "report/tables/interactionTableFinalSol.csv",
